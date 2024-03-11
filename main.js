@@ -21,9 +21,13 @@ function keydown(event)
     }
 }
 
+
+
 function keyup(event)
 {
-    player.m_moving = false;
+    if (event.keyCode == 38){
+        player.m_moving = false
+    } 
 }
 
 class Polygon
