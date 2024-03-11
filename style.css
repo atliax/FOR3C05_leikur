@@ -1,0 +1,16 @@
+body {
+    margin: 0 auto;
+    width: 960px;
+    background-color: black;
+}
+
+canvas {
+    border: 1px solid white;
+}
+
+#canvasDiv {
+    margin-top: 20px;
+    margin-left: auto;
+    margin-right: auto;
+    text-align: center;
+}
