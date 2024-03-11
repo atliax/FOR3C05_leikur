@@ -158,6 +158,9 @@ class Asteroid extends Polygon
         this.m_rotationSpeed = 1;
         this.m_angle = Math.floor(Math.random()*359);
 
+        // Hérna er algorithm sem lofar góðu varðandi random lögun á þeim:
+        // https://gamedev.stackexchange.com/questions/180096/how-do-you-draw-a-random-irregular-polygon-in-java-asteroids
+
         this.m_points.push([ 0  , -1  ]);
         this.m_points.push([ 1  ,  0  ]);
         this.m_points.push([ 1  ,  1  ]);
