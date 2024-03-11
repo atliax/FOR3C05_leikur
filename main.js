@@ -1,73 +1,179 @@
-canvas = document.getElementById('mainCanvas');
-context = canvas.getContext('2d');
-
-let moving = false;
-
-let grid = 16;
-
-let posX = 8*grid;
-let posY = 8*grid;
-
-let angle = 0;
-let movementSpeed = 5;
-let rotationSpeed = 10;
-
 function keydown(event)
 {
-    if(event.keyCode == 37)
+    if(event.keyCode == 37)//vinstri
     {
-        angle -= rotationSpeed;
-        if(angle < 0)
-            angle += 360;
+        player.rotate(true);
     }
 
-    if(event.keyCode == 39)
+    if(event.keyCode == 39)//hægri
     {
-        angle += rotationSpeed;
-        if(angle >= 360)
-            angle -= 360;
+        player.rotate(false);
     }
 
-    if(event.keyCode == 38)
+    if(event.keyCode == 38)//upp
     {
-        moving = true;
+        player.m_moving = true;
     }
 
-    document.getElementById('angle').innerHTML = angle.toString();
+    if(event.keyCode == 32)//space
+    {
+        //player.shoot();
+    }
 }
 
 function keyup(event)
 {
-    if(event.keyCode == 38)
-    {
-        moving = false;
-    }
+    player.m_moving = false;
 }
-
-document.addEventListener("keydown",keydown);
-document.addEventListener("keyup",keyup);
 
 class Polygon
 {
     constructor()
     {
-        
+        this.m_posX = 0 * grid;
+        this.m_posY = 0 * grid;
+        this.m_moving = false;
+        this.m_angle = 0;
+        this.m_movementSpeed = 5;
+        this.m_rotationSpeed = 10;
+        this.m_points = [];
     }
 
-    draw()
+    draw(points)
     {
-        
+        for(let i = 0; i < points.length; i++)
+        {
+            points[i] = rotate(points[i],this.m_angle);
+            points[i] = [points[i][0]*grid,points[i][1]*grid];
+            points[i] = [points[i][0]+this.m_posX,points[i][1]+this.m_posY];
+        }
+        context.beginPath();
+        context.moveTo(points[0][0],points[0][1]);
+        for(let j = 1; j < points.length; j++)
+        {
+            context.lineTo(points[j][0],points[j][1]);
+        }
+        context.lineTo(points[0][0],points[0][1]);
+        context.stroke();
+    }
+
+    rotate(left)
+    {
+        if(left)
+        {
+            this.m_angle -= this.m_rotationSpeed;
+            if(this.m_angle < 0)
+            {
+                this.m_angle += 360;
+            }
+        }
+        else
+        {
+            this.m_angle += this.m_rotationSpeed;
+            if(this.m_angle >= 360)
+            {
+                this.m_angle -= 360;
+            }
+        }
+    }
+
+    move()
+    {
+        if(this.m_moving)
+        {
+            let a = this.m_movementSpeed * Math.cos(angleRad(this.m_angle));
+            let b = this.m_movementSpeed * Math.sin(angleRad(this.m_angle));
+            
+            this.m_posX += b;
+            this.m_posY -= a;
+            
+            if(this.m_posY < 0)
+            {
+                this.m_posY += context.canvas.height;
+            }
+            
+            if(this.m_posY > context.canvas.height)
+            {
+                this.m_posY -= context.canvas.height;
+            }
+            
+            if(this.m_posX < 0)
+            {
+                this.m_posX += context.canvas.width;
+            }
+            
+            if(this.m_posX > context.canvas.width)
+            {
+                this.m_posX -= context.canvas.width;
+            }
+    
+            this.m_posX = Math.round(this.m_posX);
+            this.m_posY = Math.round(this.m_posY);
+        }
     }
 }
 
 class Ship extends Polygon
 {
+    constructor(startX, startY)
+    {
+        super();
 
+        this.m_posX = startX;
+        this.m_posY = startY;
+
+        //skipið
+        this.m_points.push([ 0,-1.5]);
+        this.m_points.push([ 1, 1.5]);
+        this.m_points.push([ 0, 0.5]);
+        this.m_points.push([-1, 1.5]);
+        //"eldurinn"
+        this.m_points.push([-0.5, 1  ]);
+        this.m_points.push([ 0  , 1.5]);
+        this.m_points.push([ 0.5, 1  ]);
+        this.m_points.push([0,0.5]);
+    }
+
+    draw()
+    {
+        super.draw(this.m_points.slice(0,4));
+
+        if(this.m_moving)
+        {
+            super.draw(this.m_points.slice(4));
+        }
+    }
 }
 
 class Asteroid extends Polygon
 {
+    constructor(X, Y)
+    {
+        super();
 
+        this.m_posX = X;
+        this.m_posY = Y;
+        this.m_moving = true;
+        this.m_movementSpeed = 2;
+        this.m_rotationSpeed = 1;
+        this.m_angle = Math.floor(Math.random()*359);
+
+        this.m_points.push([ 0  , -1  ]);
+        this.m_points.push([ 1  ,  0  ]);
+        this.m_points.push([ 1  ,  1  ]);
+        this.m_points.push([ 0  ,  1  ]);
+        this.m_points.push([-0.5,  0.5]);
+        this.m_points.push([-1.5,  1  ]);
+        this.m_points.push([-1.5,  0  ]);
+        this.m_points.push([-1  ,  0  ]);
+        this.m_points.push([-0.5, -0.5]);
+        this.m_points.push([-0.5, -1  ]);
+    }
+
+    draw()
+    {
+        super.draw(this.m_points.slice(0));
+    }
 }
 
 function angleRad(a)
@@ -75,118 +181,50 @@ function angleRad(a)
     return a * (Math.PI/180);
 }
 
-function rotate([X,Y])
+function rotate([X,Y],angle)
 {
     let nX = X*Math.cos(angleRad(angle))-Y*Math.sin(angleRad(angle));
     let nY = X*Math.sin(angleRad(angle))+Y*Math.cos(angleRad(angle));
     return [nX,nY];
 }
 
-function draw()
+function update()
 {
-    context.clearRect(0,0,context.canvas.width,context.canvas.height);
+    player.move();
+    asteroid.move();
+    asteroid.rotate();
 
-    context.strokeStyle = "white";
-    context.fillStyle = "black";
-    context.lineWidth = 1;
-    
+    //skoða árekstra hér?
+
+    //hreinsa skjáinn með því að teikna kassa
+    context.clearRect(0,0,context.canvas.width,context.canvas.height);
     context.beginPath();
     context.rect(0,0,context.canvas.width,context.canvas.height);
     context.fill();
 
-    // skipið
-    let point1 = [ 0,-1.5];
-    let point2 = [ 1, 1.5];
-    let point3 = [ 0, 0.5];
-    let point4 = [-1, 1.5];
-
-    // "eldurinn"
-    let point5 = [-0.5, 1  ];
-    let point6 = [ 0  , 1.5];
-    let point7 = [ 0.5, 1  ];
-
-    point1 = rotate(point1);
-    point2 = rotate(point2);
-    point3 = rotate(point3);
-    point4 = rotate(point4);
-    point5 = rotate(point5);
-    point6 = rotate(point6);
-    point7 = rotate(point7);
-
-    point1 = [point1[0]*grid,point1[1]*grid];
-    point2 = [point2[0]*grid,point2[1]*grid];
-    point3 = [point3[0]*grid,point3[1]*grid];
-    point4 = [point4[0]*grid,point4[1]*grid];
-    point5 = [point5[0]*grid,point5[1]*grid];
-    point6 = [point6[0]*grid,point6[1]*grid];
-    point7 = [point7[0]*grid,point7[1]*grid];
-
-    point1 = [point1[0]+posX,point1[1]+posY];
-    point2 = [point2[0]+posX,point2[1]+posY];
-    point3 = [point3[0]+posX,point3[1]+posY];
-    point4 = [point4[0]+posX,point4[1]+posY];
-    point5 = [point5[0]+posX,point5[1]+posY];
-    point6 = [point6[0]+posX,point6[1]+posY];
-    point7 = [point7[0]+posX,point7[1]+posY];
-
-    context.beginPath();
-
-    context.moveTo(point1[0],point1[1]);
-    context.lineTo(point2[0],point2[1]);
-    context.lineTo(point3[0],point3[1]);
-    context.lineTo(point4[0],point4[1]);
-    context.lineTo(point1[0],point1[1]);
-
-    //context.fillStyle="yellow";
-    //context.fill();
-    if(moving)
-    {
-        //context.beginPath();
-        context.moveTo(point5[0],point5[1]);
-        context.lineTo(point6[0],point6[1]);
-        context.lineTo(point7[0],point7[1]);
-        context.lineTo(point3[0],point3[1]);
-        context.lineTo(point5[0],point5[1]);
-        //context.fillStyle = "orange";
-        //context.fill();
-    }
-
-    context.stroke();
-
-    if(moving)
-    {
-        moveShip();
-    }
+    player.draw();
+    asteroid.draw();
 }
 
-function moveShip()
-{
-    let a = movementSpeed * Math.cos(angleRad(angle));
-    let b = movementSpeed * Math.sin(angleRad(angle));
+let canvas = document.getElementById('mainCanvas');
+let context = canvas.getContext('2d');
 
-    posX += b;
-    posY -= a;
+context.strokeStyle = "white";
+context.fillStyle = "black";
+context.lineWidth = 1;
 
-    if(posY < 0)
-        posY += context.canvas.height;
+let grid = 16;
 
-    if(posY > context.canvas.height)
-        posY -= context.canvas.height;
+let playerStartX = context.canvas.width/2;
+let playerStartY = context.canvas.height/2;
 
-    if(posX < 0)
-        posX += context.canvas.width;
+let asteroidStartX = Math.floor(Math.random()*(context.canvas.width-1));
+let asteroidStartY = Math.floor(Math.random()*(context.canvas.height-1));
 
-    if(posX > context.canvas.width)
-        posX -= context.canvas.width;
+document.addEventListener("keydown",keydown);
+document.addEventListener("keyup",keyup);
 
+let player = new Ship(playerStartX,playerStartY);
+let asteroid = new Asteroid(asteroidStartX,asteroidStartY);
 
-    posX = Math.round(posX);
-    posY = Math.round(posY);
-
-    document.getElementById('aside').innerHTML = a.toString();
-    document.getElementById('bside').innerHTML = b.toString();
-    document.getElementById('posX').innerHTML = posX.toString();
-    document.getElementById('posY').innerHTML = posY.toString();
-}
-
-let game = setInterval(draw, 16);
+let game = setInterval(update, 16);
