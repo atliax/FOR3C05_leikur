@@ -8,6 +8,15 @@ const KEY_DOWN = 40;
 const KEY_SPACE = 32;
 const KEY_S = 83;
 
+let keys = {
+    KEY_LEFT: false,
+    KEY_RIGHT: false,
+    KEY_UP: false,
+    KEY_DOWN: false,
+    KEY_SPACE: false,
+    KEY_S: false
+};
+
 const NUM_STARS = 40;
 
 context.strokeStyle = "white";
@@ -32,8 +41,46 @@ document.addEventListener("keyup",keyup);
 
 let game = setInterval(update, 20);
 
+function handleKeys()
+{
+    if(keys[KEY_LEFT] == true)
+    {
+        player.rotate(-player.m_rotationSpeed);
+    }
+
+    if(keys[KEY_RIGHT] == true)
+    {
+        player.rotate(player.m_rotationSpeed);
+    }
+
+    if(keys[KEY_UP] == true)
+    {
+        player.thrust();
+        player.m_drawFlame = true;
+    }
+    else
+    {
+        player.thrust(0);
+        player.m_drawFlame = false
+    }
+
+    if(keys[KEY_SPACE] == true)
+    {
+        //player.shoot();
+    }
+
+    if(keys[KEY_S] == true)
+    {
+        let asteroidStartX = Math.floor(Math.random()*(context.canvas.width-1));
+        let asteroidStartY = Math.floor(Math.random()*(context.canvas.height-1));
+        asteroids.push(new Asteroid(asteroidStartX,asteroidStartY));
+    }
+}
+
 function update()
 {
+    handleKeys();
+
     player.move();
     if(asteroids.length > 0)
     {
@@ -91,41 +138,26 @@ function draw_background()
 
 function keydown(event)
 {
-    if(event.keyCode == KEY_LEFT)//vinstri
+    if(event.keyCode == KEY_LEFT ||
+        event.keyCode == KEY_RIGHT ||
+        event.keyCode == KEY_UP ||
+        event.keyCode == KEY_SPACE ||
+        event.keyCode == KEY_S)
     {
-        player.rotate(-player.m_rotationSpeed);
-    }
-
-    if(event.keyCode == KEY_RIGHT)//hægri
-    {
-        player.rotate(player.m_rotationSpeed);
-    }
-
-    if(event.keyCode == KEY_UP)//upp
-    {
-        player.thrust();
-        player.m_drawFlame = true;
-    }
-
-    if(event.keyCode == KEY_SPACE)//space
-    {
-        //player.shoot();
-    }
-
-    if(event.keyCode == KEY_S)
-    {
-        let asteroidStartX = Math.floor(Math.random()*(context.canvas.width-1));
-        let asteroidStartY = Math.floor(Math.random()*(context.canvas.height-1));
-        asteroids.push(new Asteroid(asteroidStartX,asteroidStartY));
+        keys[event.keyCode] = true;
     }
 }
 
 function keyup(event)
 {
-    if (event.keyCode == 38){
-        player.thrust(0);
-        player.m_drawFlame = false
-    } 
+    if(event.keyCode == KEY_LEFT ||
+        event.keyCode == KEY_RIGHT ||
+        event.keyCode == KEY_UP ||
+        event.keyCode == KEY_SPACE ||
+        event.keyCode == KEY_S)
+    {
+        keys[event.keyCode] = false;
+    }
 }
 
 function randomShape(X,Y,nodes,minR,maxR)
