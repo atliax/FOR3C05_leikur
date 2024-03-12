@@ -7,6 +7,7 @@ const KEY_UP = 38;
 const KEY_DOWN = 40;
 const KEY_SPACE = 32;
 const KEY_S = 83;
+const KEY_E = 69;
 
 const NUM_STARS = 500;
 
@@ -24,10 +25,12 @@ let keys = {
     KEY_UP: false,
     KEY_DOWN: false,
     KEY_SPACE: false,
-    KEY_S: false
+    KEY_S: false,
+    KEY_E: false
 };
 
 let asteroids = [];
+let saucers = [];
 
 let generatedBackground = false;
 let storedBackground;
@@ -55,6 +58,14 @@ function update()
         }
     }
 
+    if(saucers.length > 0)
+    {
+        for(let i = 0; i < saucers.length;i++)
+        {
+            saucers[i].move();
+        }
+    }
+
     //skoða árekstra hér?
 
     draw_background();
@@ -70,6 +81,14 @@ function update()
         }
     }
     player.draw();
+
+    if(saucers.length > 0)
+    {
+        for(let i = 0; i < saucers.length;i++)
+        {
+            saucers[i].draw();
+        }
+    }
 
     window.requestAnimationFrame(update);
 }
@@ -107,6 +126,20 @@ function handleKeys()
         let asteroidStartX = Math.floor(Math.random()*(context.canvas.width-1));
         let asteroidStartY = Math.floor(Math.random()*(context.canvas.height-1));
         asteroids.push(new Asteroid(asteroidStartX,asteroidStartY));
+    }
+
+    if(keys[KEY_E] == true)
+    {
+        let saucerStartX = Math.floor(Math.random()*(context.canvas.width-1));
+        let saucerStartY = Math.floor(Math.random()*(context.canvas.height-1));
+        if(Math.floor(Math.random() * 50) > 25)
+        {
+            saucers.push(new BigSaucer(saucerStartX,saucerStartY));
+        }
+        else
+        {
+            saucers.push(new SmallSaucer(saucerStartX,saucerStartY));
+        }
     }
 }
 
@@ -147,7 +180,8 @@ function keydown(event)
         event.keyCode == KEY_RIGHT ||
         event.keyCode == KEY_UP ||
         event.keyCode == KEY_SPACE ||
-        event.keyCode == KEY_S)
+        event.keyCode == KEY_S ||
+        event.keyCode == KEY_E)
     {
         keys[event.keyCode] = true;
     }
@@ -159,7 +193,8 @@ function keyup(event)
         event.keyCode == KEY_RIGHT ||
         event.keyCode == KEY_UP ||
         event.keyCode == KEY_SPACE ||
-        event.keyCode == KEY_S)
+        event.keyCode == KEY_S ||
+        event.keyCode == KEY_E)
     {
         keys[event.keyCode] = false;
     }
@@ -222,6 +257,8 @@ class Polygon
 {
     constructor()
     {
+        this.m_scale = 1;
+
         this.m_posX = 0 * grid;
         this.m_posY = 0 * grid;
 
@@ -244,6 +281,7 @@ class Polygon
         {
             points[i] = rotate(points[i],this.m_angle);
             points[i] = [points[i][0]*grid,points[i][1]*grid];
+            points[i] = [Math.round(points[i][0]*this.m_scale),Math.round(points[i][1]*this.m_scale)];
             points[i] = [points[i][0]+this.m_posX,points[i][1]+this.m_posY];
         }
         context.beginPath();
@@ -386,6 +424,65 @@ class Ship extends Polygon
             super.draw(this.m_points.slice(4));
             //context.restore();
         }
+    }
+}
+
+class Saucer extends Polygon
+{
+    constructor(X, Y)
+    {
+        super();
+
+        this.m_posX = X;
+        this.m_posY = Y;
+
+        this.m_maxVel = 3;
+
+        this.m_velX = Math.floor(Math.random()*3);
+        this.m_velY = Math.floor(Math.random()*3);
+
+        this.m_rotationSpeed = 0;
+
+        this.m_angle = 0;
+        this.m_movementAngle = Math.floor(Math.random()*359);
+
+        this.m_points.push([-0.5,-1.5]);
+        this.m_points.push([0.5,-1.5]);
+        this.m_points.push([1,-0.5]);
+        this.m_points.push([2.5,0.5]);
+        this.m_points.push([1,1.5]);
+        this.m_points.push([-1,1.5]);
+        this.m_points.push([-2.5,0.5]);
+        this.m_points.push([-1,-0.5]);
+
+        this.m_points.push([-2.5,0.5]);
+        this.m_points.push([-1,-0.5]);
+        this.m_points.push([1,-0.5]);
+        this.m_points.push([2.5,0.5]);
+    }
+
+    draw()
+    {
+        super.draw(this.m_points.slice(0,8));
+        super.draw(this.m_points.slice(8));
+    }
+}
+
+class BigSaucer extends Saucer
+{
+    constructor(X,Y)
+    {
+        super(X,Y);
+        this.m_scale = 1.25;
+    }
+}
+
+class SmallSaucer extends Saucer
+{
+    constructor(X,Y)
+    {
+        super(X,Y);
+        this.m_scale = 0.75;
     }
 }
 
