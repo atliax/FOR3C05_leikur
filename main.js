@@ -162,25 +162,59 @@ class Asteroid extends Polygon
         this.m_rotationSpeed = 1;
         this.m_angle = Math.floor(Math.random()*359);
 
-        // Hérna er algorithm sem lofar góðu varðandi random lögun á þeim:
-        // https://gamedev.stackexchange.com/questions/180096/how-do-you-draw-a-random-irregular-polygon-in-java-asteroids
+        // kannski 10, 5 og 2 fyrir stærðir?
+        this.m_size = 5;
 
-        this.m_points.push([ 0  , -1  ]);
-        this.m_points.push([ 1  ,  0  ]);
-        this.m_points.push([ 1  ,  1  ]);
-        this.m_points.push([ 0  ,  1  ]);
-        this.m_points.push([-0.5,  0.5]);
-        this.m_points.push([-1.5,  1  ]);
-        this.m_points.push([-1.5,  0  ]);
-        this.m_points.push([-1  ,  0  ]);
-        this.m_points.push([-0.5, -0.5]);
-        this.m_points.push([-0.5, -1  ]);
+        this.m_minrad = Math.round(this.m_size/3);
+
+        this.m_points = [...randomShape(Math.round(X/grid),Math.round(Y/grid),10,this.m_minrad,this.m_size)];
     }
 
     draw()
     {
         super.draw(this.m_points.slice(0));
     }
+}
+
+function randomShape(X,Y,nodes,minR,maxR)
+{
+    let angleStep = (Math.PI * 2) / nodes;
+
+    let tmpRet = [];
+    let x, y;
+
+    for(let i = 0;i < nodes;i++)
+    {
+        do
+        {
+            let targetAngle = angleStep * i;
+            let angle = targetAngle + (Math.random() - 0.75) * angleStep * 0.5;
+            let radius = minR + Math.random() * (maxR-minR);
+            x = Math.round(Math.round((Math.cos(angle) * radius) * grid)/grid);
+            y = Math.round(Math.round((Math.sin(angle) * radius) * grid)/grid);
+        }
+        while(isXYInArray(x,y,tmpRet));
+
+        tmpRet.push([x,y]);
+    }
+
+    return tmpRet;
+}
+
+function isXYInArray(tx,ty,tmpRet)
+{
+    if(tmpRet.length == 0)
+        return false;
+
+    for(let j = 0; j < tmpRet.length;j++)
+    {
+        if(tmpRet[j][0] == tx && tmpRet[j][1] == ty)
+        {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 function angleRad(a)
@@ -234,4 +268,4 @@ document.addEventListener("keyup",keyup);
 let player = new Ship(playerStartX,playerStartY);
 let asteroid = new Asteroid(asteroidStartX,asteroidStartY);
 
-let game = setInterval(update, 16);
+let game = setInterval(update, 20);
