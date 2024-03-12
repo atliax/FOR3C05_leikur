@@ -2,16 +2,17 @@ function keydown(event)
 {
     if(event.keyCode == KEY_LEFT)//vinstri
     {
-        player.rotate(true);
+        player.rotate(-player.m_rotationSpeed);
     }
 
     if(event.keyCode == KEY_RIGHT)//hægri
     {
-        player.rotate(false);
+        player.rotate(player.m_rotationSpeed);
     }
 
     if(event.keyCode == KEY_UP)//upp
     {
+        player.thrust();
         player.m_moving = true;
     }
 
@@ -21,11 +22,10 @@ function keydown(event)
     }
 }
 
-
-
 function keyup(event)
 {
     if (event.keyCode == 38){
+        player.thrust(0);
         player.m_moving = false
     } 
 }
@@ -36,8 +36,16 @@ class Polygon
     {
         this.m_posX = 0 * grid;
         this.m_posY = 0 * grid;
+
+        this.m_thrust = 0;
+        this.m_velX = 0;
+        this.m_velY = 0;
+
+        this.m_maxVel = 8;
+
         this.m_moving = false;
         this.m_angle = 0;
+        this.m_movementAngle = 0;
         this.m_movementSpeed = 5;
         this.m_rotationSpeed = 10;
         this.m_points = [];
@@ -61,59 +69,88 @@ class Polygon
         context.stroke();
     }
 
-    rotate(left)
+    rotate(rotationSpeed = this.m_rotationSpeed)
     {
-        if(left)
+        this.m_angle += rotationSpeed;
+
+        if(this.m_angle < 0)
         {
-            this.m_angle -= this.m_rotationSpeed;
-            if(this.m_angle < 0)
-            {
-                this.m_angle += 360;
-            }
+            this.m_angle += 360;
         }
-        else
+        else if(this.m_angle >= 360)
         {
-            this.m_angle += this.m_rotationSpeed;
-            if(this.m_angle >= 360)
-            {
-                this.m_angle -= 360;
-            }
+            this.m_angle -= 360;
         }
+    }
+
+    thrust(power = this.m_movementSpeed)
+    {
+        this.m_thrust = power;
     }
 
     move()
     {
-        if(this.m_moving)
+        let a = this.m_thrust * Math.cos(degToRad(this.m_movementAngle));
+        let b = this.m_thrust * Math.sin(degToRad(this.m_movementAngle));
+
+        this.m_velX += b;
+        this.m_velY -= a;
+
+        if(this.m_velX < 0)
         {
-            let a = this.m_movementSpeed * Math.cos(angleRad(this.m_angle));
-            let b = this.m_movementSpeed * Math.sin(angleRad(this.m_angle));
-            
-            this.m_posX += b;
-            this.m_posY -= a;
-            
-            if(this.m_posY < 0)
+            if(this.m_velX < -this.m_maxVel)
             {
-                this.m_posY += context.canvas.height;
+                this.m_velX = -this.m_maxVel
             }
-            
-            if(this.m_posY > context.canvas.height)
-            {
-                this.m_posY -= context.canvas.height;
-            }
-            
-            if(this.m_posX < 0)
-            {
-                this.m_posX += context.canvas.width;
-            }
-            
-            if(this.m_posX > context.canvas.width)
-            {
-                this.m_posX -= context.canvas.width;
-            }
-    
-            this.m_posX = Math.round(this.m_posX);
-            this.m_posY = Math.round(this.m_posY);
         }
+        else if(this.m_velX > 0)
+        {
+            if(this.m_velX > this.m_maxVel)
+            {
+                this.m_velX = this.m_maxVel
+            }
+        }
+
+        if(this.m_velY < 0)
+        {
+            if(this.m_velY < -this.m_maxVel)
+            {
+                this.m_velY = -this.m_maxVel
+            }
+        }
+        else if(this.m_velY > 0)
+        {
+            if(this.m_velY > this.m_maxVel)
+            {
+                this.m_velY = this.m_maxVel
+            }
+        }
+
+        this.m_posX += this.m_velX;
+        this.m_posY += this.m_velY;
+
+        if(this.m_posY < 0)
+        {
+            this.m_posY += context.canvas.height;
+        }
+            
+        if(this.m_posY > context.canvas.height)
+        {
+            this.m_posY -= context.canvas.height;
+        }
+            
+        if(this.m_posX < 0)
+        {
+            this.m_posX += context.canvas.width;
+        }
+            
+        if(this.m_posX > context.canvas.width)
+        {
+            this.m_posX -= context.canvas.width;
+        }
+    
+        this.m_posX = Math.round(this.m_posX);
+        this.m_posY = Math.round(this.m_posY);
     }
 }
 
@@ -122,6 +159,9 @@ class Ship extends Polygon
     constructor(startX, startY)
     {
         super();
+
+        this.m_movementSpeed = playerSpeed;
+        this.m_rotationSpeed = playerRotationSpeed;
 
         this.m_posX = startX;
         this.m_posY = startY;
@@ -136,6 +176,12 @@ class Ship extends Polygon
         this.m_points.push([ 0  , 1.5]);
         this.m_points.push([ 0.5, 1  ]);
         this.m_points.push([0,0.5]);
+    }
+
+    rotate(rotationSpeed)
+    {
+        super.rotate(rotationSpeed);
+        this.m_movementAngle = this.m_angle;
     }
 
     draw()
@@ -158,9 +204,10 @@ class Asteroid extends Polygon
         this.m_posX = X;
         this.m_posY = Y;
         this.m_moving = true;
-        this.m_movementSpeed = 2;
+        this.m_movementSpeed = 1;
         this.m_rotationSpeed = 1;
         this.m_angle = Math.floor(Math.random()*359);
+        this.m_movementAngle = Math.floor(Math.random()*359);
 
         // kannski 10, 5 og 2 fyrir stærðir?
         this.m_size = 5;
@@ -217,15 +264,15 @@ function isXYInArray(tx,ty,tmpRet)
     return false;
 }
 
-function angleRad(a)
+function degToRad(a)
 {
     return a * (Math.PI/180);
 }
 
 function rotate([X,Y],angle)
 {
-    let nX = X*Math.cos(angleRad(angle))-Y*Math.sin(angleRad(angle));
-    let nY = X*Math.sin(angleRad(angle))+Y*Math.cos(angleRad(angle));
+    let nX = X*Math.cos(degToRad(angle))-Y*Math.sin(degToRad(angle));
+    let nY = X*Math.sin(degToRad(angle))+Y*Math.cos(degToRad(angle));
     return [nX,nY];
 }
 
@@ -267,6 +314,8 @@ let grid = 16;
 
 let playerStartX = context.canvas.width/2;
 let playerStartY = context.canvas.height/2;
+let playerSpeed = 0.5;
+let playerRotationSpeed = 15;
 
 let asteroidStartX = Math.floor(Math.random()*(context.canvas.width-1));
 let asteroidStartY = Math.floor(Math.random()*(context.canvas.height-1));
