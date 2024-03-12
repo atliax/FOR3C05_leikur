@@ -70,9 +70,6 @@ function update()
 
     draw_background();
 
-    drawText("asteroids",10,40);
-    drawText("Atli er bestur",10,80);
-
     if(asteroids.length > 0)
     {
         for(let i = 0; i < asteroids.length;i++)
