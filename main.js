@@ -39,7 +39,7 @@ let storedBackground;
 document.addEventListener("keydown",keydown);
 document.addEventListener("keyup",keyup);
 
-let game = setInterval(update, 20);
+window.requestAnimationFrame(update);
 
 function handleKeys()
 {
@@ -103,6 +103,8 @@ function update()
         }
     }
     player.draw();
+
+    window.requestAnimationFrame(update);
 }
 
 function draw_background()
