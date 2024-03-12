@@ -103,7 +103,7 @@ function keydown(event)
     if(event.keyCode == KEY_UP)//upp
     {
         player.thrust();
-        player.m_moving = true;
+        player.m_drawFlame = true;
     }
 
     if(event.keyCode == KEY_SPACE)//space
@@ -123,7 +123,7 @@ function keyup(event)
 {
     if (event.keyCode == 38){
         player.thrust(0);
-        player.m_moving = false
+        player.m_drawFlame = false
     } 
 }
 
@@ -193,7 +193,6 @@ class Polygon
 
         this.m_maxVel = 8;
 
-        this.m_moving = false;
         this.m_angle = 0;
         this.m_movementAngle = 0;
         this.m_movementSpeed = 5;
@@ -317,6 +316,8 @@ class Ship extends Polygon
         this.m_posX = startX;
         this.m_posY = startY;
 
+        this.m_drawFlame = false;
+
         //skipið
         this.m_points.push([ 0,-1.5]);
         this.m_points.push([ 1, 1.5]);
@@ -339,7 +340,7 @@ class Ship extends Polygon
     {
         super.draw(this.m_points.slice(0,4));
 
-        if(this.m_moving)
+        if(this.m_drawFlame)
         {
             //context.save();
             //context.fillStyle = "yellow";
@@ -357,7 +358,6 @@ class Asteroid extends Polygon
 
         this.m_posX = X;
         this.m_posY = Y;
-        this.m_moving = true;
 
         this.m_maxVel = 3;
         this.m_velX = Math.floor(Math.random()*3);
