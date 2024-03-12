@@ -67,18 +67,14 @@ function draw_background()
         context.rect(0,0,context.canvas.width,context.canvas.height);
         context.fill();
 
-        let starPixelData = context.createImageData(1,1);
-        starPixelData.data[0] = 255;
-        starPixelData.data[1] = 255;
-        starPixelData.data[2] = 255;
-        starPixelData.data[3] = 255;
-
         for(let i = 0; i < NUM_STARS;i++)
         {
             let sX = Math.floor(Math.random()*(context.canvas.width-1));
             let sY = Math.floor(Math.random()*(context.canvas.height-1));
-            context.putImageData(starPixelData,sX,sY);
+            context.fillStyle = "white";
+            context.fillRect(sX,sY,1,1);
         }
+        context.fillStyle = "black";
 
         storedBackground = canvas.toDataURL();
 
