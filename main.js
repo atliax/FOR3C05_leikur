@@ -14,11 +14,12 @@ context.strokeStyle = "white";
 context.fillStyle = "black";
 context.lineWidth = 1;
 
-let grid = 16;
+let grid = 10;
 
 let playerStartX = context.canvas.width/2;
 let playerStartY = context.canvas.height/2;
-let playerSpeed = 0.5;
+let playerSpeed = 0.3;
+let playerMaxSpeed = 5;
 let playerRotationSpeed = 15;
 
 let asteroids = [];
@@ -312,6 +313,7 @@ class Ship extends Polygon
 
         this.m_movementSpeed = playerSpeed;
         this.m_rotationSpeed = playerRotationSpeed;
+        this.m_maxVel = playerMaxSpeed;
 
         this.m_posX = startX;
         this.m_posY = startY;
