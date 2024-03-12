@@ -8,6 +8,16 @@ const KEY_DOWN = 40;
 const KEY_SPACE = 32;
 const KEY_S = 83;
 
+const NUM_STARS = 500;
+
+const grid = 10;
+
+const playerStartX = context.canvas.width/2;
+const playerStartY = context.canvas.height/2;
+const playerSpeed = 0.3;
+const playerMaxSpeed = 5;
+const playerRotationSpeed = 15;
+
 let keys = {
     KEY_LEFT: false,
     KEY_RIGHT: false,
@@ -17,29 +27,49 @@ let keys = {
     KEY_S: false
 };
 
-const NUM_STARS = 500;
-
-context.strokeStyle = "white";
-context.fillStyle = "black";
-context.lineWidth = 1;
-
-let grid = 10;
-
-let playerStartX = context.canvas.width/2;
-let playerStartY = context.canvas.height/2;
-let playerSpeed = 0.3;
-let playerMaxSpeed = 5;
-let playerRotationSpeed = 15;
-
 let asteroids = [];
 
 let generatedBackground = false;
 let storedBackground;
 
+context.strokeStyle = "white";
+context.fillStyle = "black";
+context.lineWidth = 1;
+
 document.addEventListener("keydown",keydown);
 document.addEventListener("keyup",keyup);
 
 window.requestAnimationFrame(update);
+
+function update()
+{
+    handleKeys();
+
+    player.move();
+    if(asteroids.length > 0)
+    {
+        for(let i = 0; i < asteroids.length;i++)
+        {
+            asteroids[i].move();
+            asteroids[i].rotate();
+        }
+    }
+
+    //skoða árekstra hér?
+
+    draw_background();
+
+    if(asteroids.length > 0)
+    {
+        for(let i = 0; i < asteroids.length;i++)
+        {
+            asteroids[i].draw();
+        }
+    }
+    player.draw();
+
+    window.requestAnimationFrame(update);
+}
 
 function handleKeys()
 {
@@ -75,36 +105,6 @@ function handleKeys()
         let asteroidStartY = Math.floor(Math.random()*(context.canvas.height-1));
         asteroids.push(new Asteroid(asteroidStartX,asteroidStartY));
     }
-}
-
-function update()
-{
-    handleKeys();
-
-    player.move();
-    if(asteroids.length > 0)
-    {
-        for(let i = 0; i < asteroids.length;i++)
-        {
-            asteroids[i].move();
-            asteroids[i].rotate();
-        }
-    }
-
-    //skoða árekstra hér?
-
-    draw_background();
-
-    if(asteroids.length > 0)
-    {
-        for(let i = 0; i < asteroids.length;i++)
-        {
-            asteroids[i].draw();
-        }
-    }
-    player.draw();
-
-    window.requestAnimationFrame(update);
 }
 
 function draw_background()
