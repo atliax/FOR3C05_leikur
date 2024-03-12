@@ -1,21 +1,21 @@
 function keydown(event)
 {
-    if(event.keyCode == 37)//vinstri
+    if(event.keyCode == KEY_LEFT)//vinstri
     {
         player.rotate(true);
     }
 
-    if(event.keyCode == 39)//hægri
+    if(event.keyCode == KEY_RIGHT)//hægri
     {
         player.rotate(false);
     }
 
-    if(event.keyCode == 38)//upp
+    if(event.keyCode == KEY_UP)//upp
     {
         player.m_moving = true;
     }
 
-    if(event.keyCode == 32)//space
+    if(event.keyCode == KEY_SPACE)//space
     {
         //player.shoot();
     }
@@ -234,6 +234,8 @@ function update()
     player.move();
     asteroid.move();
     asteroid.rotate();
+    asteroid2.move();
+    asteroid2.rotate();
 
     //skoða árekstra hér?
 
@@ -245,10 +247,17 @@ function update()
 
     player.draw();
     asteroid.draw();
+    asteroid2.draw();
 }
 
-let canvas = document.getElementById('mainCanvas');
-let context = canvas.getContext('2d');
+const canvas = document.getElementById('mainCanvas');
+const context = canvas.getContext('2d');
+
+const KEY_LEFT = 37;
+const KEY_RIGHT = 39;
+const KEY_UP = 38;
+const KEY_DOWN = 40;
+const KEY_SPACE = 32;
 
 context.strokeStyle = "white";
 context.fillStyle = "black";
@@ -267,5 +276,6 @@ document.addEventListener("keyup",keyup);
 
 let player = new Ship(playerStartX,playerStartY);
 let asteroid = new Asteroid(asteroidStartX,asteroidStartY);
+let asteroid2 = new Asteroid(asteroidStartX,asteroidStartY);
 
 let game = setInterval(update, 20);
