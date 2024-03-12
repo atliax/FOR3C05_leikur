@@ -18,6 +18,9 @@ const playerStartY = context.canvas.height/2;
 const playerSpeed = 0.3;
 const playerMaxSpeed = 5;
 const playerRotationSpeed = 15;
+let playerStartLives = 4;
+let playerLives = playerStartLives;
+let playerScore = 0;
 
 let keys = {
     KEY_LEFT: false,
@@ -87,7 +90,30 @@ function update()
         }
     }
 
+    drawGUI();
+
     window.requestAnimationFrame(update);
+}
+
+function drawGUI()
+{
+    drawScore();
+    drawLives();
+}
+
+function drawScore()
+{
+    drawText(playerScore.toString(),5,35);
+}
+
+function drawLives()
+{
+    let tmpShip = new Ship(0,60);
+    for(let i = 0; i < playerLives; i++)
+    {
+        tmpShip.m_posX = (i*2.5*grid)+20;
+        tmpShip.draw();
+    }
 }
 
 function handleKeys()
@@ -115,6 +141,7 @@ function handleKeys()
 
     if(keys[KEY_SPACE] == true)
     {
+        playerLives -= 1;
         //player.shoot();
     }
 
@@ -123,6 +150,7 @@ function handleKeys()
         let asteroidStartX = Math.floor(Math.random()*(context.canvas.width-1));
         let asteroidStartY = Math.floor(Math.random()*(context.canvas.height-1));
         asteroids.push(new Asteroid(asteroidStartX,asteroidStartY));
+        playerScore += 1;
     }
 
     if(keys[KEY_E] == true)
@@ -137,6 +165,7 @@ function handleKeys()
         {
             saucers.push(new SmallSaucer(saucerStartX,saucerStartY));
         }
+        playerLives += 1;
     }
 }
 
