@@ -304,7 +304,7 @@ class Polygon
     }
 }
 
-class Ship extends Polygo
+class Ship extends Polygon
 {
     constructor(startX, startY)
     {
