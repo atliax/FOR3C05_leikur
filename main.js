@@ -17,7 +17,7 @@ let keys = {
     KEY_S: false
 };
 
-const NUM_STARS = 40;
+const NUM_STARS = 500;
 
 context.strokeStyle = "white";
 context.fillStyle = "black";
@@ -421,7 +421,7 @@ class Asteroid extends Polygon
         }
         else
         {
-            this.m_size = 10;
+            this.m_size = 8;
         }
 
         this.m_minrad = Math.round(this.m_size/3);
