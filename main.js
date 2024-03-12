@@ -6,6 +6,9 @@ const KEY_RIGHT = 39;
 const KEY_UP = 38;
 const KEY_DOWN = 40;
 const KEY_SPACE = 32;
+const KEY_S = 83;
+
+const NUM_STARS = 40;
 
 context.strokeStyle = "white";
 context.fillStyle = "black";
@@ -18,8 +21,10 @@ let playerStartY = context.canvas.height/2;
 let playerSpeed = 0.5;
 let playerRotationSpeed = 15;
 
-let asteroidStartX = Math.floor(Math.random()*(context.canvas.width-1));
-let asteroidStartY = Math.floor(Math.random()*(context.canvas.height-1));
+let asteroids = [];
+
+let generatedBackground = false;
+let storedBackground;
 
 document.addEventListener("keydown",keydown);
 document.addEventListener("keyup",keyup);
@@ -29,22 +34,62 @@ let game = setInterval(update, 20);
 function update()
 {
     player.move();
-    asteroid.move();
-    asteroid.rotate();
-    asteroid2.move();
-    asteroid2.rotate();
+    if(asteroids.length > 0)
+    {
+        for(let i = 0; i < asteroids.length;i++)
+        {
+            asteroids[i].move();
+            asteroids[i].rotate();
+        }
+    }
 
     //skoða árekstra hér?
 
-    //hreinsa skjáinn með því að teikna kassa
-    context.clearRect(0,0,context.canvas.width,context.canvas.height);
-    context.beginPath();
-    context.rect(0,0,context.canvas.width,context.canvas.height);
-    context.fill();
+    draw_background();
 
+    if(asteroids.length > 0)
+    {
+        for(let i = 0; i < asteroids.length;i++)
+        {
+            asteroids[i].draw();
+        }
+    }
     player.draw();
-    asteroid.draw();
-    asteroid2.draw();
+}
+
+function draw_background()
+{
+    if(!generatedBackground)
+    {
+        //hreinsa skjáinn með því að teikna kassa
+        context.clearRect(0,0,context.canvas.width,context.canvas.height);
+        context.beginPath();
+        context.rect(0,0,context.canvas.width,context.canvas.height);
+        context.fill();
+
+        let starPixelData = context.createImageData(1,1);
+        starPixelData.data[0] = 255;
+        starPixelData.data[1] = 255;
+        starPixelData.data[2] = 255;
+        starPixelData.data[3] = 255;
+
+        for(let i = 0; i < NUM_STARS;i++)
+        {
+            let sX = Math.floor(Math.random()*(context.canvas.width-1));
+            let sY = Math.floor(Math.random()*(context.canvas.height-1));
+            context.putImageData(starPixelData,sX,sY);
+        }
+
+        storedBackground = canvas.toDataURL();
+
+        generatedBackground = true;
+    }
+    else
+    {
+        let tmpImg = new Image();
+        tmpImg.src = storedBackground;
+        context.drawImage(tmpImg,0,0);
+    }
 }
 
 function keydown(event)
@@ -68,6 +113,13 @@ function keydown(event)
     if(event.keyCode == KEY_SPACE)//space
     {
         //player.shoot();
+    }
+
+    if(event.keyCode == KEY_S)
+    {
+        let asteroidStartX = Math.floor(Math.random()*(context.canvas.width-1));
+        let asteroidStartY = Math.floor(Math.random()*(context.canvas.height-1));
+        asteroids.push(new Asteroid(asteroidStartX,asteroidStartY));
     }
 }
 
@@ -168,6 +220,7 @@ class Polygon
             context.lineTo(points[j][0],points[j][1]);
         }
         context.lineTo(points[0][0],points[0][1]);
+        context.fill();
         context.stroke();
     }
 
@@ -292,7 +345,10 @@ class Ship extends Polygon
 
         if(this.m_moving)
         {
+            //context.save();
+            //context.fillStyle = "yellow";
             super.draw(this.m_points.slice(4));
+            //context.restore();
         }
     }
 }
@@ -306,13 +362,37 @@ class Asteroid extends Polygon
         this.m_posX = X;
         this.m_posY = Y;
         this.m_moving = true;
-        this.m_movementSpeed = 1;
+
+        this.m_maxVel = 3;
+        this.m_velX = Math.floor(Math.random()*3);
+        this.m_velY = Math.floor(Math.random()*3);
+
         this.m_rotationSpeed = 1;
+
+        // random hvort þeir snúast til vinstri eða hægri
+        if(Math.floor(Math.random() * 50) > 25)
+        {
+            this.m_rotationSpeed *= -1;
+        }
+
         this.m_angle = Math.floor(Math.random()*359);
         this.m_movementAngle = Math.floor(Math.random()*359);
 
-        // kannski 10, 5 og 2 fyrir stærðir?
-        this.m_size = 5;
+        // hvað viljum við c.a. hafa þá stóra/litla?
+        // (og hversu margar stærðir viljum við hafa?)
+        let tmpSize = Math.floor(Math.random()*2);
+        if(tmpSize == 0)
+        {
+            this.m_size = 2;
+        }
+        else if (tmpSize == 1)
+        {
+            this.m_size = 5;
+        }
+        else
+        {
+            this.m_size = 10;
+        }
 
         this.m_minrad = Math.round(this.m_size/3);
 
@@ -326,5 +406,3 @@ class Asteroid extends Polygon
 }
 
 let player = new Ship(playerStartX,playerStartY);
-let asteroid = new Asteroid(asteroidStartX,asteroidStartY);
-let asteroid2 = new Asteroid(asteroidStartX,asteroidStartY);
