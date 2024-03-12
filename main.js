@@ -162,7 +162,7 @@ function keyup(event)
     }
 }
 
-function randomShape(X,Y,nodes,minR,maxR)
+function randomShape(nodes,minR,maxR)
 {
     let angleStep = (Math.PI * 2) / nodes;
 
@@ -428,7 +428,7 @@ class Asteroid extends Polygon
 
         this.m_minrad = Math.round(this.m_size/3);
 
-        this.m_points = [...randomShape(Math.round(X/grid),Math.round(Y/grid),10,this.m_minrad,this.m_size)];
+        this.m_points = [...randomShape(10,this.m_minrad,this.m_size)];
     }
 
     draw()
