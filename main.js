@@ -1,6 +1,7 @@
 const canvas = document.getElementById('mainCanvas');
 const context = canvas.getContext('2d');
 
+// constantar til að auðvelda læsileika í lyklaborðsföllum
 const KEY_LEFT = 37;
 const KEY_RIGHT = 39;
 const KEY_UP = 38;
@@ -9,19 +10,25 @@ const KEY_SPACE = 32;
 const KEY_S = 83;
 const KEY_E = 69;
 
+// fjöldi stjarna á bakgrunnsmynd
 const NUM_STARS = 500;
 
+// skölunarbreyta fyrir öll form/hluti
 const grid = 10;
 
+// constantar fyrir leikmann
 const playerStartX = context.canvas.width/2;
 const playerStartY = context.canvas.height/2;
 const playerSpeed = 0.3;
 const playerMaxSpeed = 5;
 const playerRotationSpeed = 15;
-let playerStartLives = 4;
+const playerStartLives = 4;
+
+// tmp
 let playerLives = playerStartLives;
 let playerScore = 0;
 
+// object sem geymir upplýsingar um það hvaða takka er verið að ýta á
 let keys = {
     KEY_LEFT: false,
     KEY_RIGHT: false,
@@ -32,21 +39,27 @@ let keys = {
     KEY_E: false
 };
 
+// fylki til að geyma hlutina sem eru til staðar í leiknum
 let asteroids = [];
 let saucers = [];
 
 let generatedBackground = false;
 let storedBackground;
 
+//default stillingar á canvas teikningunum
 context.strokeStyle = "white";
 context.fillStyle = "black";
 context.lineWidth = 1;
 
+//atburðahlustarar
 document.addEventListener("keydown",keydown);
 document.addEventListener("keyup",keyup);
 
+//fyrsta kallið á aðallykkjufallið, það kallar svo sjálft aftur á sig
 window.requestAnimationFrame(update);
 
+// update()
+// fall sem hýsir aðallykkju leiksins
 function update()
 {
     handleKeys();
@@ -95,17 +108,23 @@ function update()
     window.requestAnimationFrame(update);
 }
 
+// drawGUI()
+// teiknar notendaviðmótið
 function drawGUI()
 {
     drawScore();
     drawLives();
 }
 
+// drawScore()
+// teiknar stigin sem leikmaður er kominn með
 function drawScore()
 {
     drawText(playerScore.toString(),5,35);
 }
 
+// drawLives()
+// teiknar lífin sem leikmaður á eftir
 function drawLives()
 {
     let tmpShip = new Ship(0,60);
@@ -116,6 +135,8 @@ function drawLives()
     }
 }
 
+// handleKeys()
+// bregst við eftir því sem við á ef takki á lyklaborði er niðri
 function handleKeys()
 {
     if(keys[KEY_LEFT] == true)
@@ -141,19 +162,19 @@ function handleKeys()
 
     if(keys[KEY_SPACE] == true)
     {
-        playerLives -= 1;
+        playerLives -= 1; //tmp
         //player.shoot();
     }
 
-    if(keys[KEY_S] == true)
+    if(keys[KEY_S] == true) // prufa, býr til asteroid
     {
         let asteroidStartX = Math.floor(Math.random()*(context.canvas.width-1));
         let asteroidStartY = Math.floor(Math.random()*(context.canvas.height-1));
         asteroids.push(new Asteroid(asteroidStartX,asteroidStartY));
-        playerScore += 1;
+        playerScore += 1; //tmp
     }
 
-    if(keys[KEY_E] == true)
+    if(keys[KEY_E] == true) // prufa, býr til óvini
     {
         let saucerStartX = Math.floor(Math.random()*(context.canvas.width-1));
         let saucerStartY = Math.floor(Math.random()*(context.canvas.height-1));
@@ -165,12 +186,17 @@ function handleKeys()
         {
             saucers.push(new SmallSaucer(saucerStartX,saucerStartY));
         }
-        playerLives += 1;
+        playerLives += 1; //tmp
     }
 }
 
+// draw_background()
+// teiknar bakgrunn með NUM_STARS random pixlum
+// fallið teiknar bakgrunninn einu sinni og geymir hann
+// eftir það, þá teiknar fallið geymda bakgrunninn
 function draw_background()
 {
+    // ef enginn bakgrunnur er til í geymslu:
     if(!generatedBackground)
     {
         //hreinsa skjáinn með því að teikna kassa
@@ -179,6 +205,7 @@ function draw_background()
         context.rect(0,0,context.canvas.width,context.canvas.height);
         context.fill();
 
+        // búa til random stjörnur
         for(let i = 0; i < NUM_STARS;i++)
         {
             let sX = Math.floor(Math.random()*(context.canvas.width-1));
@@ -188,18 +215,24 @@ function draw_background()
         }
         context.fillStyle = "black";
 
+        // geyma bakgrunn
         storedBackground = canvas.toDataURL();
 
         generatedBackground = true;
     }
-    else
+    else // ef bakgrunnur var til í geymslu:
     {
         let tmpImg = new Image();
+
+        // sækja bakgrunn og teikna hann á skjáinn
         tmpImg.src = storedBackground;
         context.drawImage(tmpImg,0,0);
     }
 }
 
+// keydown()
+// atburðahöndlari fyrir keydown atburði
+// "skrifar" hjá sér takka sem er ýtt niður
 function keydown(event)
 {
     if(event.keyCode == KEY_LEFT ||
@@ -213,6 +246,9 @@ function keydown(event)
     }
 }
 
+// keyup()
+// atburðahöndlari fyrir keyup atburði
+// "skrifar" hjá sér takka sem er sleppt
 function keyup(event)
 {
     if(event.keyCode == KEY_LEFT ||
@@ -226,8 +262,20 @@ function keyup(event)
     }
 }
 
+// randomShape()
+// fall sem býr til handahófskennt form
+// það fer í hring og býr til punkta
+//
+// nodes -> fjöldi punkta á hringnum
+//  minR -> lægsti mögulegi radíus
+//  maxR -> hæsti mögulegi radíus
+//
+// skilar frá sér fylki af fylkjum með X,Y hnitum
+// t.d. [[x,y],[x2,y2],[x3,y3]]
+// (ekki pixel position hnitum, þau eru seinna sköluð upp með grid breytunni)
 function randomShape(nodes,minR,maxR)
 {
+    // reikna hornið milli punkta út frá fjölda
     let angleStep = (Math.PI * 2) / nodes;
 
     let tmpRet = [];
@@ -235,6 +283,8 @@ function randomShape(nodes,minR,maxR)
 
     for(let i = 0;i < nodes;i++)
     {
+        // lykkja sem býr til ný hnit
+        // keyrir aftur og aftur þangað til það verða til hnit sem eru ekki í fylkinu
         do
         {
             let targetAngle = angleStep * i;
@@ -251,6 +301,11 @@ function randomShape(nodes,minR,maxR)
     return tmpRet;
 }
 
+// isXYInArray()
+// athugar hvort hnit séu þegar til staðar í fylki
+//
+// tx, ty -> hnit
+// tmpRet -> fylki
 function isXYInArray(tx,ty,tmpRet)
 {
     if(tmpRet.length == 0)
@@ -267,11 +322,20 @@ function isXYInArray(tx,ty,tmpRet)
     return false;
 }
 
+// degToRad()
+// breytir gráðum í radíana
+//
+// a -> gráður
 function degToRad(a)
 {
     return a * (Math.PI/180);
 }
 
+// rotate()
+// snýr XY hnitum um eitthvað horn
+// 
+// [X,Y] -> hnitin
+// angle -> hornið í gráðum
 function rotate([X,Y],angle)
 {
     let nX = X*Math.cos(degToRad(angle))-Y*Math.sin(degToRad(angle));
@@ -279,14 +343,30 @@ function rotate([X,Y],angle)
     return [nX,nY];
 }
 
+// Polygon
+// grunnclass fyrir form
+//
+// member breytur:
+//   m_scale -> skali á forminu, hægt að nota til að stækka eða minnka formið án þess að þurfa að fikta í hnitunum
+//   m_posX -> pixel position staðsetning á X núllpunkti formsins
+//   m_posY -> pixel position staðsetning á Y núllpunkti formsins
+//   m_thrust -> hröðun formins
+//   m_velX -> hraði formsins á X-ás
+//   m_velY -> hraði formsins á Y-ás
+//   m_maxVel -> hæsti mögulegi hraði formsins á hvorum ás fyrir sig
+//   m_angle -> horn í gráðum sem er notað til að teikna formið
+//   m_movementAngle -> horn í gráðum sem er notað til að hreyfa formið
+//   m_movementSpeed -> default hröðun formsins
+//   m_rotationSpeed -> snúningshraði, hversu hratt m_angle breytist
+//   m_points -> fylki af punktum sem er notað til að teikna/mynda formið
 class Polygon
 {
     constructor()
     {
         this.m_scale = 1;
 
-        this.m_posX = 0 * grid;
-        this.m_posY = 0 * grid;
+        this.m_posX = 0;
+        this.m_posY = 0;
 
         this.m_thrust = 0;
         this.m_velX = 0;
@@ -296,20 +376,34 @@ class Polygon
 
         this.m_angle = 0;
         this.m_movementAngle = 0;
+
         this.m_movementSpeed = 5;
         this.m_rotationSpeed = 10;
+
         this.m_points = [];
     }
 
-    draw(points)
+    // meðlimafall sem tekur við fylki af hnitum og teiknar línur á milli þeirra
+    // endar á því að tengja seinasta punkt við upphafspunkt
+    // hver undirclass keyrir þetta fall og gefur því fylki
+    draw(pointsArray)
     {
+        // afrit tekið vegna þess að við munum breyta hnitunum talsvert mikið til að teikna þau
+        let points = [...pointsArray];
+
         for(let i = 0; i < points.length; i++)
         {
+            // snúa hnitunum um m_angle
             points[i] = rotate(points[i],this.m_angle);
+            // "ytri" skölun á forminu (grid)
             points[i] = [points[i][0]*grid,points[i][1]*grid];
+            // "innri" skölun á forminu (m_scale)
             points[i] = [Math.round(points[i][0]*this.m_scale),Math.round(points[i][1]*this.m_scale)];
+            // translation yfir á réttan stað á skjánum (pixel position)
             points[i] = [points[i][0]+this.m_posX,points[i][1]+this.m_posY];
         }
+
+        // teikna formið, línu fyrir línu
         context.beginPath();
         context.moveTo(points[0][0],points[0][1]);
         for(let j = 1; j < points.length; j++)
@@ -317,10 +411,12 @@ class Polygon
             context.lineTo(points[j][0],points[j][1]);
         }
         context.lineTo(points[0][0],points[0][1]);
+        // fylla formið svo stjörnurnar komi ekki í gegn
         context.fill();
         context.stroke();
     }
 
+    // meðlimafall sem snýr forminu, keyrt í aðallykkju
     rotate(rotationSpeed = this.m_rotationSpeed)
     {
         this.m_angle += rotationSpeed;
@@ -335,19 +431,26 @@ class Polygon
         }
     }
 
+    //meðlimafall sem stillir hröðun formsins
+    //notað til að stoppa líka með .thrust(0)
     thrust(power = this.m_movementSpeed)
     {
         this.m_thrust = power;
     }
 
+    //meðlimafall sem hreyfir formið út frá m_thrust
     move()
     {
+        // reikna hraðabreytinguna á ásunum
         let a = this.m_thrust * Math.cos(degToRad(this.m_movementAngle));
         let b = this.m_thrust * Math.sin(degToRad(this.m_movementAngle));
 
+        // breyta hraðanum með viðeigandi hraðabreytingu
         this.m_velX += b;
         this.m_velY -= a;
 
+        // læsa hraðanum á X ás í annað hvort -m_maxVel eða m_maxVel
+        // 0 er viljandi ekki haft með, annars myndi formið aldrei stoppa
         if(this.m_velX < 0)
         {
             if(this.m_velX < -this.m_maxVel)
@@ -363,6 +466,8 @@ class Polygon
             }
         }
 
+        // læsa hraðanum á Y ás í annað hvort -m_maxVel eða m_maxVel
+        // 0 er viljandi ekki haft með, annars myndi formið aldrei stoppa
         if(this.m_velY < 0)
         {
             if(this.m_velY < -this.m_maxVel)
@@ -378,9 +483,12 @@ class Polygon
             }
         }
 
+        // færa staðsetninguna eftir hraðanum
         this.m_posX += this.m_velX;
         this.m_posY += this.m_velY;
 
+        // næstu 4 if skipanir tengja saman endana á skjánum svo að
+        // formið birtist á hinum endanum ef það fer út af skjánum
         if(this.m_posY < 0)
         {
             this.m_posY += context.canvas.height;
@@ -400,12 +508,21 @@ class Polygon
         {
             this.m_posX -= context.canvas.width;
         }
-    
+
+        // jafna hnitin ef þau skyldu vera kommutölur eftir hreyfinguna
+        // (til að þau lendi á heilum pixel position hnitum)
         this.m_posX = Math.round(this.m_posX);
         this.m_posY = Math.round(this.m_posY);
     }
 }
 
+// Ship
+// class fyrir skipið sem leikmaðurinn stýrir
+//
+// erfir allt sem Polygon hefur
+//
+// meðlimabreyta sem bætist við:
+//   m_drawFlame -> teiknar "eldinn" ef það er true
 class Ship extends Polygon
 {
     constructor(startX, startY)
@@ -435,14 +552,19 @@ class Ship extends Polygon
 
     rotate(rotationSpeed)
     {
+        // kalla fyrst í Polygon.rotate()
         super.rotate(rotationSpeed);
+
+        // læsa svo hreyfingarhorni og teiknihorni saman
         this.m_movementAngle = this.m_angle;
     }
 
     draw()
     {
+        // teikna fyrst skipið
         super.draw(this.m_points.slice(0,4));
 
+        // og svo eldinn ef það á við
         if(this.m_drawFlame)
         {
             //context.save();
@@ -453,6 +575,11 @@ class Ship extends Polygon
     }
 }
 
+// Saucer
+// grunnclass fyrir óvini
+//
+// erfir allt sem Polygon hefur
+//
 class Saucer extends Polygon
 {
     constructor(X, Y)
@@ -472,6 +599,7 @@ class Saucer extends Polygon
         this.m_angle = 0;
         this.m_movementAngle = Math.floor(Math.random()*359);
 
+        // útlínur
         this.m_points.push([-0.5,-1.5]);
         this.m_points.push([0.5,-1.5]);
         this.m_points.push([1,-0.5]);
@@ -481,6 +609,7 @@ class Saucer extends Polygon
         this.m_points.push([-2.5,0.5]);
         this.m_points.push([-1,-0.5]);
 
+        // miðjubútur til að fá línur þvert á skipið
         this.m_points.push([-2.5,0.5]);
         this.m_points.push([-1,-0.5]);
         this.m_points.push([1,-0.5]);
@@ -489,11 +618,18 @@ class Saucer extends Polygon
 
     draw()
     {
+        // teiknað í tvennu lagi til að fá línurnar þvert á skipið
         super.draw(this.m_points.slice(0,8));
         super.draw(this.m_points.slice(8));
     }
 }
 
+// BigSaucer
+// class fyrir stóra óvini
+//
+// erfir allt sem Saucer hefur
+// 
+// TODO - hegðun
 class BigSaucer extends Saucer
 {
     constructor(X,Y)
@@ -503,6 +639,12 @@ class BigSaucer extends Saucer
     }
 }
 
+// SmallSaucer
+// class fyrir litla óvini
+//
+// erfir allt sem Saucer hefur
+// 
+// TODO - hegðun
 class SmallSaucer extends Saucer
 {
     constructor(X,Y)
@@ -512,6 +654,18 @@ class SmallSaucer extends Saucer
     }
 }
 
+// hugsanlega sameina BigSaucer og SmallSaucer í Saucer og stilla stærðina í smiðnum
+
+// Asteroid
+// class fyrir asteroidin
+//
+// erfir allt sem Polygon hefur
+//
+// meðlimabreyta sem bætist við:
+//   m_size -> stærð asteroidsins
+//
+// eins og er hreyfast þeir constant þar sem þeir kalla aldrei á thrust() fallið
+// það er sennilega the way to go
 class Asteroid extends Polygon
 {
     constructor(X, Y)
@@ -533,6 +687,7 @@ class Asteroid extends Polygon
             this.m_rotationSpeed *= -1;
         }
 
+        // handahófshorn milli 0 og 359 fyrir bæði hreyfingu og snúning
         this.m_angle = Math.floor(Math.random()*359);
         this.m_movementAngle = Math.floor(Math.random()*359);
 
@@ -559,12 +714,15 @@ class Asteroid extends Polygon
 
     draw()
     {
-        super.draw(this.m_points.slice(0));
+        super.draw(this.m_points);
     }
 }
 
+// leikmannsbreyta, verður að vera neðan við skilgreininguna á Ship classanum
 let player = new Ship(playerStartX,playerStartY);
 
+// fonturinn fyrir leikinn
+// stafirnir eru skilgreindir frá neðra vinstra horni í 2x3 hnitakerfi
 let font = {
     'A':
     [[[0, 0],[0,-2]],
@@ -746,6 +904,11 @@ let font = {
     [[[0,0],[2,0]]]
 };
 
+// drawText()
+// fall sem teiknar textastreng
+//
+// text -> textastrengurinn
+// X, Y -> pixel position hnit á skjánum
 function drawText(text,X,Y)
 {
     text = text.toUpperCase();
@@ -759,6 +922,11 @@ function drawText(text,X,Y)
     }
 }
 
+// drawLetter()
+// fall til að teikna stakan staf
+// 
+// letter -> stafur til að teikna, þarf að vera skilgreindur í font objectinu
+//  X,  Y -> pixel position hnit á skjánum
 function drawLetter(letter,X,Y)
 {
     context.translate(0.5,0.5);
@@ -785,6 +953,11 @@ function drawLetter(letter,X,Y)
     context.translate(-0.5,-0.5);
 }
 
+// drawCircle()
+// fall til að teikna stakan radius 2 hring
+//
+//     X,     Y -> staðsetning hringsins í 2x3 grid, samskonar og font objectið notar
+// drawX, drawY -> pixel position hnit á skjánum
 function drawCircle(X,Y,drawX,drawY)
 {
     context.save();
@@ -797,6 +970,12 @@ function drawCircle(X,Y,drawX,drawY)
     context.restore();
 }
 
+// drawLine()
+// fall sem teiknar staka línu
+//
+//    X1,    Y1 -> upphafspunktur
+//    X2,    Y2 -> endapunktur
+// drawX, drawY -> pixel position hnit á skjánum
 function drawLine(X1,Y1,X2,Y2,drawX,drawY)
 {
     context.beginPath();
