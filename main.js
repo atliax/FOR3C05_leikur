@@ -34,6 +34,9 @@ const playerRotationSpeed = 7;
 const playerStartLives = 4;
 const playerDrag = 0.025;
 
+let playerLastShotTime = 0;
+const playerMinTimeBetweenShots = 20;// x*10 millisekúndur, 100 er þá == 1 sek.
+
 // constantar fyrir kúlur
 const maxBullets = 10;
 const bulletSpeed = 7;
@@ -268,17 +271,21 @@ function handleKeys()
         //audioThrust.pause();
     }
 
+    if(keys[KEY_SPACE] == true && ((runtimeMilliseconds-playerLastShotTime) >= playerMinTimeBetweenShots))
+    {
+        playerLastShotTime = runtimeMilliseconds;
+
+        players[0].shoot();
+
+        audioShoot.currentTime = 0;
+        audioShoot.play();
+    }
+
     // smá bremsa á lyklaborðsinput sem eru höndluð neðar í fallinu
     if(timeSinceLast <= 5) {
         return;
     } else {
         lastKeypress = runtimeMilliseconds;
-    }
-
-    if(keys[KEY_SPACE] == true)
-    {
-        players[0].shoot();
-        audioShoot.play();
     }
 
     if(keys[KEY_S] == true) // prufa, býr til asteroid
