@@ -11,12 +11,13 @@ const KEY_S = 83;
 const KEY_E = 69;
 const KEY_G = 71;
 
-// timer sem telur upp um 1 per 10 millisekúndur
-let runtimeMS = 0;
+// timer breyta sem telur upp um 1 fyrir hverjar 10 millisekúndur
+let runtimeMilliseconds = 0;
 
-// breyta sem geymir runtimeMS gildið á seinasta hyperspace
+// breyta sem geymir runtimeMilliseconds gildið á seinasta lyklaborðsinputi
 // (til að koma í veg fyrir að það triggerist of oft)
-let lastHyperspaceTime = 0;
+// TODO: finna góðan meðalveg til að geta notað þetta á alla takkana?
+let lastKeypress = 0;
 
 // fjöldi stjarna á bakgrunnsmynd
 const NUM_STARS = 500;
@@ -28,9 +29,15 @@ const grid = 10;
 const playerStartX = context.canvas.width/2;
 const playerStartY = context.canvas.height/2;
 const playerSpeed = 0.3;
-const playerMaxSpeed = 5;
-const playerRotationSpeed = 10;
+const playerMaxSpeed = 6;
+const playerRotationSpeed = 7;
 const playerStartLives = 4;
+const playerDrag = 0.025;
+
+// constantar fyrir kúlur
+const maxBullets = 10;
+const bulletSpeed = 7;
+const bulletMaxAge = 150;
 
 // object sem geymir upplýsingar um það hvaða takka er verið að ýta á
 let keys = {
@@ -47,6 +54,8 @@ let keys = {
 // fylki til að geyma hlutina sem eru til staðar í leiknum
 let asteroids = [];
 let saucers = [];
+let bullets = [];
+let players = [];
 
 let generatedBackground = false;
 let storedBackground;
@@ -59,12 +68,30 @@ context.lineWidth = 1;
 //atburðahlustarar
 document.addEventListener("keydown",keydown);
 document.addEventListener("keyup",keyup);
+addEventListener("load",initStuff);
 
-//fyrsta kallið á aðallykkjufallið, það kallar svo sjálft aftur á sig
-window.requestAnimationFrame(update);
+// virkja timer til að geta tímasett hluti
+let timer = setInterval(incrementTimer,10);
 
 //tmp fikt
 const doClassicShapes = false;
+
+let audioShoot = new Audio();
+let audioThrust = new Audio();
+
+// initStuff()
+// stilla það sem þarf að stilla í upphafi
+function initStuff()
+{
+    audioShoot.src = "sounds/shoot.wav";
+    audioThrust.src = "sounds/thrust.wav";
+    audioThrust.loop = true;
+
+    players.push(new Player(playerStartX,playerStartY));
+
+    //fyrsta kallið á aðallykkjufallið, það kallar svo sjálft aftur á sig
+    window.requestAnimationFrame(update);
+}
 
 // update()
 // fall sem hýsir aðallykkju leiksins
@@ -78,51 +105,28 @@ function update()
     //
     // síðan hreyfingar og snúningar
     //
-    player.move();
-    if(asteroids.length > 0)
-    {
-        for(let i = 0; i < asteroids.length;i++)
-        {
-            asteroids[i].move();
-            asteroids[i].rotate();
-        }
-    }
-    if(saucers.length > 0)
-    {
-        for(let i = 0; i < saucers.length;i++)
-        {
-            saucers[i].move();
-        }
-    }
+    move_polygons(players);
+    move_polygons(asteroids);
+    move_polygons(saucers);
+    move_polygons(bullets);
 
-    //
+    decay_bullets();
+
+    rotate_polygons(asteroids);
+
+    //TODO
     //skoða árekstra hér
-    //
+    //TODO
 
     //
     //og að lokum teikna allt sem þarf
     //
     draw_background();
-    if(asteroids.length > 0)
-    {
-        for(let i = 0; i < asteroids.length;i++)
-        {
-            asteroids[i].draw();
-        }
-    }
 
-    if(saucers.length > 0)
-    {
-        for(let i = 0; i < saucers.length;i++)
-        {
-            saucers[i].draw();
-        }
-    }
-
-    if(player.isAlive())
-    {
-        player.draw();
-    }
+    draw_polygons(asteroids);
+    draw_polygons(saucers);
+    draw_polygons(bullets);
+    draw_polygons(players);
 
     drawGUI();
 
@@ -130,6 +134,71 @@ function update()
     // kalla svo aftur á update() til að framkvæma næstu lykkju
     //
     window.requestAnimationFrame(update);
+}
+
+// decay_bullets()
+// fall sem fer í gegnum fylkið af kúlum og fjarlægir þær sem eru útrunnar
+// m_decayed er stillt í move() fallinu í Bullet klasanum þannig að þetta
+// fall þarf að keyrast eftir að move() hefur keyrt
+function decay_bullets()
+{
+    //fara í gegnum kúlurnar
+    if(bullets.length > 0)
+    {
+        for(let i = 0; i < bullets.length; i++)
+        {
+            // fjarlægja kúluna ef hún er orðin of gömul
+            if(bullets[i].m_decayed == true)
+            {
+                bullets.splice(i,1);
+            }
+        }
+    }
+}
+
+// move_polygons()
+// fall sem fer í gegnum fylki af Polygon klösum og keyrir move() fallið þeirra
+//
+// array -> fylki af Polygon klösum
+function move_polygons(array)
+{
+    if(array.length > 0)
+    {
+        for(let i = 0; i < array.length;i++)
+        {
+            array[i].move();
+        }
+    }
+}
+
+// rotate_polygons()
+// fall sem fer í gegnum fylki af Polygon klösum og keyrir rotate() fallið þeirra
+//
+// array -> fylki af Polygon klösum
+function rotate_polygons(array)
+{
+    if(array.length > 0)
+    {
+        for(let i = 0; i < array.length;i++)
+        {
+            array[i].rotate();
+        }
+    }
+}
+
+// draw_polygons()
+// fall sem fer í gegnum fylki af Polygon klösum og keyrir draw() fallið þeirra
+//
+// array -> fylki af Polygon klösum
+function draw_polygons(array)
+{
+    if(array.length > 0)
+    {
+        for(let i = 0; i < array.length;i++)
+        {
+            array[i].draw();
+        }
+    }
 }
 
 // randomCoordinates()
@@ -153,17 +222,17 @@ function drawGUI()
 // teiknar stigin sem leikmaður er kominn með
 function drawScore()
 {
-    drawText(player.getScore().toString(),5,35);
+    drawText(players[0].getScore().toString(),5,35);
 }
 
 // drawLives()
 // teiknar lífin sem leikmaður á eftir
 function drawLives()
 {
-    if(player.getLives() > 0)
+    if(players[0].getLives() > 0)
     {
         let tmpShip = new Ship(0,60);
-        for(let i = 0; i < player.getLives(); i++)
+        for(let i = 0; i < players[0].getLives(); i++)
         {
             tmpShip.m_posX = (i*2.5*grid)+20;
             tmpShip.draw();
@@ -176,29 +245,40 @@ function drawLives()
 function handleKeys()
 {
     let tmpCoords;
+    let timeSinceLast = runtimeMilliseconds-lastKeypress;
 
     if(keys[KEY_LEFT] == true)
     {
-        player.rotate(-player.m_rotationSpeed);
+        players[0].rotate(-players[0].m_rotationSpeed);
     }
 
     if(keys[KEY_RIGHT] == true)
     {
-        player.rotate(player.m_rotationSpeed);
+        players[0].rotate(players[0].m_rotationSpeed);
     }
 
     if(keys[KEY_UP] == true)
     {
-        player.thrust();
+        players[0].thrust();
+        //audioThrust.play();
     }
     else
     {
-        player.thrust(0);
+        players[0].thrust(0);
+        //audioThrust.pause();
+    }
+
+    // smá bremsa á lyklaborðsinput sem eru höndluð neðar í fallinu
+    if(timeSinceLast <= 5) {
+        return;
+    } else {
+        lastKeypress = runtimeMilliseconds;
     }
 
     if(keys[KEY_SPACE] == true)
     {
-        player.shoot();
+        players[0].shoot();
+        audioShoot.play();
     }
 
     if(keys[KEY_S] == true) // prufa, býr til asteroid
@@ -220,18 +300,16 @@ function handleKeys()
         }
     }
 
-    if(keys[KEY_G] == true && (runtimeMS-lastHyperspaceTime > 7)) // hyperspace
+    if(keys[KEY_G] == true) // hyperspace
     {
-        lastHyperspaceTime = runtimeMS;
-
         tmpCoords = randomCoordinates();
-        player.m_posX = tmpCoords[0];
-        player.m_posY = tmpCoords[1];
+        players[0].m_posX = tmpCoords[0];
+        players[0].m_posY = tmpCoords[1];
 
         let randomNumber = Math.floor(Math.random()*62);
         if(randomNumber >= (asteroids.length+44))
         {
-            player.die();
+            players[0].die();
         }
     }
 }
@@ -476,46 +554,64 @@ class Polygon
     //meðlimafall sem hreyfir formið út frá m_thrust
     move()
     {
+        // geyma gamla stefnuhorn
+        let tmpAngle = this.m_movementAngle;
+        let didChange = false;
+
+        // þessi if block snýst um að hægja á hreyfingunni
+        // eins og er, þá gerist það bara hjá player
+        if(this instanceof Player)
+        {
+            // sækja stefnuhorn á hraðanum
+            let velAngle = this.getVelocityAngle();
+
+            // við viljum bara eiga við hreyfinguna ef það er einhver hreyfing að eiga sér stað
+            if(this.m_velX != 0 || this.m_velY != 0)
+            {
+                // og líka bara ef það er ekki verið að gefa inn
+                if(this.m_thrust == 0)
+                {
+                    // snúa hreyfingarhorninu í 180 gráður frá stefnu hraðavigursins
+                    this.m_movementAngle = velAngle + 180;
+
+                    // passa að hornið sé á fyrsta hring
+                    if(this.m_movementAngle >= 360)
+                        this.m_movementAngle -= 360;
+
+                    // setja inn hröðun
+                    this.m_thrust = playerDrag;
+
+                    // halda utanum það að hröðuninni og stefnuhorninu var breytt
+                    didChange = true;
+                }
+            }
+        }
+
         // reikna hraðabreytinguna á ásunum
         let a = this.m_thrust * Math.cos(degToRad(this.m_movementAngle));
         let b = this.m_thrust * Math.sin(degToRad(this.m_movementAngle));
 
-        // breyta hraðanum með viðeigandi hraðabreytingu
-        this.m_velX += b;
-        this.m_velY -= a;
+        // reikna nýja hraðavigurinn
+        let tmpVelX = this.m_velX + b;
+        let tmpVelY = this.m_velY - a;
 
-        // læsa hraðanum á X ás í annað hvort -m_maxVel eða m_maxVel
-        // 0 er viljandi ekki haft með, annars myndi formið aldrei stoppa
-        if(this.m_velX < 0)
+        // passa að lengd hraðavigursins fari ekki of langt yfir hámark
+        if(Math.sqrt((tmpVelX*tmpVelX)+(tmpVelY*tmpVelY)) < this.m_maxVel)
         {
-            if(this.m_velX < -this.m_maxVel)
-            {
-                this.m_velX = -this.m_maxVel
-            }
-        }
-        else if(this.m_velX > 0)
-        {
-            if(this.m_velX > this.m_maxVel)
-            {
-                this.m_velX = this.m_maxVel
-            }
+            // breyta hraðanum með viðeigandi hraðabreytingu
+            this.m_velX += b;
+            this.m_velY -= a;
         }
 
-        // læsa hraðanum á Y ás í annað hvort -m_maxVel eða m_maxVel
-        // 0 er viljandi ekki haft með, annars myndi formið aldrei stoppa
-        if(this.m_velY < 0)
+        // námunda hraðavigurinn að núlli ef hann er nógu nálægt því
+        if(Math.abs(this.m_velX) <= 1e-2)
         {
-            if(this.m_velY < -this.m_maxVel)
-            {
-                this.m_velY = -this.m_maxVel
-            }
+            this.m_velX = 0;
         }
-        else if(this.m_velY > 0)
+
+        if(Math.abs(this.m_velY) <= 1e-2)
         {
-            if(this.m_velY > this.m_maxVel)
-            {
-                this.m_velY = this.m_maxVel
-            }
+            this.m_velY = 0;
         }
 
         // færa staðsetninguna eftir hraðanum
@@ -544,10 +640,80 @@ class Polygon
             this.m_posX -= context.canvas.width;
         }
 
-        // jafna hnitin ef þau skyldu vera kommutölur eftir hreyfinguna
-        // (til að þau lendi á heilum pixel position hnitum)
-        this.m_posX = Math.round(this.m_posX);
-        this.m_posY = Math.round(this.m_posY);
+        // lagfæring á hröðun og stefnuhorni ef því var breytt fremst í fallinu
+        if(this instanceof Player)
+        {
+            if(didChange)
+            {
+                this.m_thrust = 0;
+                this.m_movementAngle = tmpAngle;
+            }
+        }
+    }
+
+    getVelocityAngle()
+    {
+        // finna núverandi stefnu á hraðavigri
+        let velAngle = Math.atan2(this.m_velY,this.m_velX) * (180/Math.PI);
+
+        // leiðrétta stefnuna aðeins til vegna þess hvernig skipið er teiknað
+        if(velAngle != 0)
+        {
+            velAngle += 90;
+        }
+
+        // umbreyta neikvæðum hornum í jákvæð horn
+        if(velAngle < 0)
+        {
+            velAngle += 360;
+        }
+
+        return velAngle;
+    }
+}
+
+class Bullet extends Polygon
+{
+    constructor(posX, posY, velX, velY, playerBullet)
+    {
+        super();
+
+        this.m_posX = posX;
+        this.m_posY = posY;
+
+        this.m_velX = velX;
+        this.m_velY = velY;
+
+        this.m_movementAngle = 0;
+        this.m_angle = 0;
+
+        this.m_decayed = false;
+        this.m_birth = runtimeMilliseconds;
+
+        this.m_playerBullet = playerBullet;
+    }
+
+    move()
+    {
+        let age = runtimeMilliseconds - this.m_birth;
+        if(age <= bulletMaxAge)
+        {
+            super.move();
+        }
+        else
+        {
+            this.m_decayed = true;
+        }
+    }
+
+    draw()
+    {
+        context.save();
+        context.fillStyle = "white";
+        context.beginPath();
+        context.arc(this.m_posX, this.m_posY, 2, 0, 2*Math.PI);
+        context.fill();
+        context.restore();
     }
 }
 
@@ -704,7 +870,27 @@ class Player extends Ship
 
     shoot()
     {
+        if(bullets.length >= maxBullets)
+            return;
 
+        // hraðavigur fyrir kúluna
+        let tmpVelY = -bulletSpeed * Math.cos(degToRad(this.m_movementAngle));
+        let tmpVelX =  bulletSpeed * Math.sin(degToRad(this.m_movementAngle));
+
+        // staðsetningarvigur fyrir kúluna
+        let a2 = (2*grid) * Math.cos(degToRad(this.m_movementAngle));
+        let b2 = (2*grid) * Math.sin(degToRad(this.m_movementAngle));
+
+        //bullets.push(new Bullet(this.m_posX, this.m_posY, tmpVelX, tmpVelY, true));
+        bullets.push(new Bullet((this.m_posX+b2), (this.m_posY-a2), tmpVelX, tmpVelY, true));
+    }
+
+    draw()
+    {
+        if(this.isAlive())
+        {
+            super.draw();
+        }
     }
 }
 
@@ -1235,12 +1421,9 @@ const classicAsteroidShapes =
      [  -2, 0.5]]
 ];
 
-// timer til að geta tímasett hluti
-let timer = setInterval(incrementTimer,10);
+// incrementTimer()
+// telur upp um 1 fyrir hverjar 10 millisekúndur
 function incrementTimer()
 {
-    runtimeMS++;
+    runtimeMilliseconds++;
 }
-
-// leikmannsbreyta, hún er neðst til að verða til eftir að hlutirnir sem hún þarf eru skilgreindir
-let player = new Player(playerStartX,playerStartY);
