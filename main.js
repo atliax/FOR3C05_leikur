@@ -1726,13 +1726,23 @@ function incrementTimer()
 // p2x, p2y -> X og Y hnit á seinni punktinum (pixel position hnit)
 // sensitivity -> næmnin á árekstrinum
 //
-// TODO: bæta við virkni á sensitivity breytunni
-function collision_point_to_point(p1x, p1y, p2x, p2y, sensitivity = 1)
+// Ef næmnin er notuð, þá smíðar fallið hringi á punktunum með næmnina sem radíus
+// og athugar svo hvort þeir snertast.
+// Það þýðir að næmnin hækkar með hækkandi gildi
+function collision_point_to_point(p1x, p1y, p2x, p2y, sensitivity = 0)
 {
-    // ef punktarnir eru á sama stað, þá er árekstur
-    if(p1x == p2x && p1y == p2y)
+    if(sensitivity > 0)
     {
-        return true;
+        // fyrst það var gefin upp næmni, þá notum við 2 hringi í staðinn
+        return collision_circle_to_circle(p1x,p1y,sensitivity,p2x,p2y,sensitivity);
+    }
+    else
+    {
+        // ef punktarnir eru á sama stað, þá er árekstur
+        if(p1x == p2x && p1y == p2y)
+        {
+            return true;
+        }
     }
 
     return false;
@@ -1744,17 +1754,29 @@ function collision_point_to_point(p1x, p1y, p2x, p2y, sensitivity = 1)
 // p1x, p1y -> X og Y hnit á punktinum (pixel position hnit)
 // cx, cy -> X og Y hnit á miðjupunkti hringsins (pixel position hnit)
 // cr -> radíus hringsins (pixel stærð)
-function collision_point_to_circle(px, py, cx, cy, cr)
+// sensitivity -> næmnin á árekstrinum
+//
+// Ef næmnin er notuð, þá smíðar fallið hring á punktinum með næmnina sem radíus
+// og athugar svo hvort sá hringur rekist á hringinn sem er verið að bera saman við
+// Það þýðir að næmnin hækkar með hækkandi gildi
+function collision_point_to_circle(px, py, cx, cy, cr, sensitivity = 0)
 {
-    // pýþagóras til að finna lengd línunnar á milli punktsins og hringsins
-    let A = px - cx;
-    let B = py - cy;
-    let C = Math.sqrt((A*A)+(B*B));
-
-    // ef sú lengd er minni en eða sama og radíus hringsins, þá er árekstur
-    if(C <= cr)
+    if(sensitivity > 0)
     {
-        return true;
+        return collision_circle_to_circle(px,py,sensitivity,cx,cy,cr);
+    }
+    else
+    {
+        // pýþagóras til að finna lengd línunnar á milli punktsins og hringsins
+        let A = px - cx;
+        let B = py - cy;
+        let C = Math.sqrt((A*A)+(B*B));
+
+        // ef sú lengd er minni en eða sama og radíus hringsins, þá er árekstur
+        if(C <= cr)
+        {
+            return true;
+        }
     }
 
     return false;
@@ -1767,7 +1789,11 @@ function collision_point_to_circle(px, py, cx, cy, cr)
 // c1r -> radíus fyrri hringsins (pixel stærð)
 // c1x, c1y -> X og Y hnit á miðjupunkti seinni hringsins (pixel position hnit)
 // c1r -> radíus seinni hringsins (pixel stærð)
-function collision_circle_to_circle(c1x, c1y, c1r, c2x, c2y, c2r)
+// sensitivity -> næmnin á árekstrinum
+//
+// Ef næmnin er notuð, þá bætir fallið næmninni á radíusana á hringjunum
+// Það þýðir að næmnin hækkar með hækkandi gildi og lækkar með lækkandi gildi
+function collision_circle_to_circle(c1x, c1y, c1r, c2x, c2y, c2r, sensitivity = 0)
 {
     // pýþagóras til að finna lengd línunnar á milli miðjupunkta hringjanna
     let A = c1x - c2x;
@@ -1776,7 +1802,7 @@ function collision_circle_to_circle(c1x, c1y, c1r, c2x, c2y, c2r)
 
     // ef samanlagður radíus hringjanna er minni en eða
     // sami og fjarlægðin á milli miðjupunktanna, þá er árekstur
-    if(C <= (c1r+c2r))
+    if(C <= (c1r+c2r+sensitivity))
     {
         return true;
     }
@@ -1790,23 +1816,35 @@ function collision_circle_to_circle(c1x, c1y, c1r, c2x, c2y, c2r)
 // px, py -> X og Y hnit á punktinum (pixel position hnit)
 // rx, ry -> X og Y hnit á efra vinstra horni ferhyrningsins (pixel position hnit)
 // rw, rh -> breidd og hæð ferhyrningsins (pixel stærð)
-function collision_point_to_rectangle(px, py, rx, ry, rw, rh)
+// sensitivity -> næmnin á árekstrinum
+//
+// Ef næmnin er notuð, þá smíðar fallið hring á punktinum með næmnina sem radíus
+// og athugar svo hvort sá hringur rekist á ferhyrninginn sem er verið að bera saman við
+// Það þýðir að næmnin hækkar með hækkandi gildi
+function collision_point_to_rectangle(px, py, rx, ry, rw, rh, sensitivity = 0)
 {
-    // læsileikabreytur fyrir mörk ferhyrningsins
-    let leftEdge = rx;
-    let rightEdge = rx+rw;
-    let topEdge = ry;
-    let bottomEdge = ry+rh;
-
-    // ef x er innan vinstri/hægri marka ferhyrningsins
-    // og y er innan efri/neðri marka ferhyrningsins
-    // þá er árekstur
-    if((px >= leftEdge) &&
-       (px <= rightEdge) && 
-       (py >= topEdge) &&
-       (py <= bottomEdge))
+    if(sensitivity > 0)
     {
-        return true;
+        return collision_circle_to_rectangle(px,py,sensitivity,rx,ry,rw,rh);
+    }
+    else
+    {
+        // læsileikabreytur fyrir mörk ferhyrningsins
+        let leftEdge = rx;
+        let rightEdge = rx+rw;
+        let topEdge = ry;
+        let bottomEdge = ry+rh;
+
+        // ef x er innan vinstri/hægri marka ferhyrningsins
+        // og y er innan efri/neðri marka ferhyrningsins
+        // þá er árekstur
+        if((px >= leftEdge) &&
+           (px <= rightEdge) && 
+           (py >= topEdge) &&
+           (py <= bottomEdge))
+        {
+            return true;
+        }
     }
 
     return false;
@@ -1819,8 +1857,26 @@ function collision_point_to_rectangle(px, py, rx, ry, rw, rh)
 // r1w, r1h -> breidd og hæð fyrri ferhyrningsins (pixel stærð)
 // r2x, r2y -> X og Y hnit á efra vinstra horni seinni ferhyrningsins (pixel position hnit)
 // r2w, r2h -> breidd og hæð seinni ferhyrningsins (pixel stærð)
-function collision_rectangle_to_rectangle(r1x, r1y, r1w, r1h, r2x, r2y, r2w, r2h)
+// sensitivity -> næmnin á árekstrinum
+//
+// Ef næmnin er notuð þá bætir fallið helmingnum af næmninni á allar hliðar á hvorum ferhyrningi
+// Það þýðir að næmnin hækkar og lækkar með hækkandi og lækkandi gildi
+function collision_rectangle_to_rectangle(r1x, r1y, r1w, r1h, r2x, r2y, r2w, r2h, sensitivity = 0)
 {
+    // hliðra r1 fyrst um hálfa næmni
+    r1x -= (sensitivity/2);
+    r1y -= (sensitivity/2);
+    // og stækka/minnka hann svo um 1 næmni
+    r1h += sensitivity;
+    r1w += sensitivity;
+
+    // hliðra r2 fyrst um hálfa næmni
+    r2x -= (sensitivity/2);
+    r2y -= (sensitivity/2);
+    // og stækka/minnka hann svo um 1 næmni
+    r2h += sensitivity;
+    r2w += sensitivity;
+
     // læsileikabreytur fyrir mörk ferhyrninganna
     let r1_leftEdge = r1x;
     let r1_rightEdge = r1x+r1w;
@@ -1855,7 +1911,11 @@ function collision_rectangle_to_rectangle(r1x, r1y, r1w, r1h, r2x, r2y, r2w, r2h
 // cr -> radíus hringsins (pixel stærð)
 // rx, ry -> X og Y hnit á efra vinstra horni ferhyrningsins (pixel position hnit)
 // rw, rh -> breidd og hæð ferhyrningsins (pixel stærð)
-function collision_circle_to_rectangle(cx, cy, cr, rx, ry, rw, rh)
+// sensitivity -> næmnin á árekstrinum
+//
+// Ef næmnin er notuð, þá breytir hún radíus hringsins og hefur þannig áhrif á samanburðinn
+// Hærra gildi leiðir til hækkandi næmni og öfugt
+function collision_circle_to_rectangle(cx, cy, cr, rx, ry, rw, rh, sensitivity = 0)
 {
     // læsileikabreytur fyrir mörk ferhyrningsins
     let leftEdge = rx;
@@ -1897,7 +1957,7 @@ function collision_circle_to_rectangle(cx, cy, cr, rx, ry, rw, rh)
     let C = Math.sqrt((A*A)+(B*B));
 
     // ef sú fjarlægð er minni en radíus hringsins, þá er árekstur
-    if(C <= cr)
+    if(C <= (cr+sensitivity))
     {
         return true;
     }
@@ -1912,6 +1972,10 @@ function collision_circle_to_rectangle(cx, cy, cr, rx, ry, rw, rh)
 // l2x, l2y -> X og Y hnit á endapunkti línunnar (pixel position hnit)
 // px, py -> X og Y hnit á punktinum (pixel position hnit)
 // sensitivity -> næmni árekstursins, næmnin hækkar með lækkandi gildi
+//
+// Ef næmnin er 0 þá þarf punkturinn að lenda nákvæmlega á línunni sem
+// gæti leitt til þess að maður missi af árekstrinum. 0.1 virðist vera
+// ágætis meðalvegur á milli næmni og nákvæmni
 function collision_line_to_point(l1x, l1y, l2x, l2y, px, py, sensitivity = 0.1)
 {
     // pýþagóras til að finna lengd línunnar
@@ -1946,7 +2010,11 @@ function collision_line_to_point(l1x, l1y, l2x, l2y, px, py, sensitivity = 0.1)
 // l2x, l2y -> X og Y hnit á endapunkti línunnar (pixel position hnit)
 // cx, cy -> X og Y hnit á miðjupunkti hringsins (pixel position hnit)
 // cr -> radíus hringsins (pixel stærð)
-function collision_line_to_circle(l1x, l1y, l2x, l2y, cx, cy, cr)
+// sensitivity -> næmni árekstursins
+//
+// Ef næmnin er notuð, þá breytir hún radíus hringsins og hefur þannig áhrif á samanburðinn
+// Hærra gildi leiðir til hækkandi næmni og öfugt
+function collision_line_to_circle(l1x, l1y, l2x, l2y, cx, cy, cr, sensitivity = 0)
 {
     // athuga hvort upphafs- eða endapunktur línunnar sé inni í hringnum
     let p1Inside = collision_point_to_circle(l1x,l1y,cx,cy,cr);
@@ -1998,7 +2066,7 @@ function collision_line_to_circle(l1x, l1y, l2x, l2y, cx, cy, cr)
     let tC = Math.sqrt((tA*tA)+(tB*tB));
 
     // ef sú fjarlægð er minni en radíus hringsins, þá er árekstur
-    if(tC <= cr)
+    if(tC <= (cr+sensitivity))
     {
         return true;
     }
@@ -2019,14 +2087,16 @@ function collision_line_to_line(l1x,l1y,l2x,l2y,l3x,l3y,l4x,l4y)
     // eftir Paul Bourke fyrir nákvæma útskýringu á því hvernig þessi
     // aðferð virkar.
     // Aðgengilegt hérna: https://paulbourke.net/geometry/pointlineplane/
-    let uA = ((l4x-l3x)*(l1y-l3y) - (l4y-l3y)*(l1x-l3x)) /
-             ((l4y-l3y)*(l2x-l1x) - (l4x-l3x)*(l2y-l1y));
+    let denominator = ((l4y-l3y)*(l2x-l1x) - (l4x-l3x)*(l2y-l1y));
 
-    let uB = ((l2x-l1x)*(l1y-l3y) - (l2y-l1y)*(l1x-l3x)) /
-             ((l4y-l3y)*(l2x-l1x) - (l4x-l3x)*(l2y-l1y));
+    let line1numerator = ((l4x-l3x)*(l1y-l3y) - (l4y-l3y)*(l1x-l3x));
+    let line2numerator = ((l2x-l1x)*(l1y-l3y) - (l2y-l1y)*(l1x-l3x));
 
-    // ef uA og uB liggja báðir milli 0 og 1, þá skerast línurnar og það verður árekstur
-    if(uA >= 0 && uA <= 1 && uB >= 0 && uB <= 1)
+    let line1_u = line1numerator / denominator;
+    let line2_u = line2numerator / denominator;
+
+    // ef u fyrir línu 1 og línu 2 liggja báðir milli 0 og 1, þá skerast línurnar og það verður árekstur
+    if(line1_u >= 0 && line1_u <= 1 && line2_u >= 0 && line2_u <= 1)
     {
         return true;
     }
@@ -2041,8 +2111,19 @@ function collision_line_to_line(l1x,l1y,l2x,l2y,l3x,l3y,l4x,l4y)
 // l2x, l2y -> X og Y hnit á endapunkti línunnar (pixel position hnit)
 // rx, ry -> X og Y hnit á efra vinstra horni ferhyrningsins (pixel position hnit)
 // rw, rh -> breidd og hæð ferhyrningsins (pixel stærð)
-function collision_line_to_rectangle(l1x,l1y,l2x,l2y,rx,ry,rw,rh)
+// sensitivity -> næmni árekstursins
+//
+// Ef næmnin er notuð þá bætir fallið helmingnum af næmninni á allar hliðar á hvorum ferhyrningi
+// Það þýðir að næmnin hækkar og lækkar með hækkandi og lækkandi gildi
+function collision_line_to_rectangle(l1x,l1y,l2x,l2y,rx,ry,rw,rh,sensitivity = 0)
 {
+    // hliðra ferhyrningnum fyrst um hálfa næmni
+    rx -= (sensitivity/2);
+    ry -= (sensitivity/2);
+    // og stækka/minnka hann svo um 1 næmni
+    rh += sensitivity;
+    rw += sensitivity;
+
     // hnit línanna sem marka hliðar ferhyrningsins
     let leftx, lefty1, lefty2;
     let rightx, righty1, righty2;
@@ -2089,7 +2170,13 @@ function collision_line_to_rectangle(l1x,l1y,l2x,l2y,rx,ry,rw,rh)
 //
 // vertices -> fylki með X,Y hnitum allra punktanna á polygoninum (ATH: ekki m_points, heldur eftir umbreytingar)
 // px, py -> X og Y hnit á punktinum (pixel position hnit)
-function collision_polygon_to_point(vertices, px, py)
+// sensitivity -> næmni árekstursins
+// testInside -> ef næmni er notuð, viljum við athuga hvort næmnishringurinni sé í heild sinni inni í polygoninum?
+//
+// Ef næmnin er notuð, þá smíðar fallið hring á punktinum með næmnina sem radíus
+// og athugar svo hvort sá hringur rekist á polygoninn sem er verið að bera saman við
+// Það þýðir að næmnin hækkar með hækkandi gildi
+function collision_polygon_to_point(vertices, px, py, sensitivity = 0, testInside = false)
 {
     // breytur til að auka læsileika
     const X = 0;
@@ -2097,30 +2184,37 @@ function collision_polygon_to_point(vertices, px, py)
 
     let collision = false;
 
-    let next = 0;
-    // fara yfir alla punktana á polygoninum
-    for(let current = 0; current < vertices.length; current++)
+    if(sensitivity > 0)
     {
-        // sækja index á næsta punkti
-        next = current + 1;
-
-        // ef við erum komin út fyrir fylkið, þá notum við fyrsta sem endapunkt
-        if(next == vertices.length)
+        collision = collision_polygon_to_circle(vertices,px,py,sensitivity,testInside);
+    }
+    else
+    {
+        let next = 0;
+        // fara yfir alla punktana á polygoninum
+        for(let current = 0; current < vertices.length; current++)
         {
-            next = 0;
-        }
-
-        let currentVertex = vertices[current];
-        let nextVertex = vertices[next];
-
-        if(
-            // athuga fyrst hvort Y hnit punktsins liggi á milli Y hnita beggja vertexanna
-            ((currentVertex[Y] > py) != (nextVertex[Y] > py)) &&
-            // beita svo Jordan Curve Theorem göldrum til að athuga hvort fjöldi skipta sem
-            // lína frá punktinum "stígur yfir" jaðar polygonsins sé oddatala eða slétt tala
-            (px < (nextVertex[X]-currentVertex[X]) * (py-currentVertex[Y]) / (nextVertex[Y]-currentVertex[Y]) + currentVertex[X]))
-        {
-            collision = !collision;
+            // sækja index á næsta punkti
+            next = current + 1;
+    
+            // ef við erum komin út fyrir fylkið, þá notum við fyrsta sem endapunkt
+            if(next == vertices.length)
+            {
+                next = 0;
+            }
+    
+            let currentVertex = vertices[current];
+            let nextVertex = vertices[next];
+    
+            if(
+                // athuga fyrst hvort Y hnit punktsins liggi á milli Y hnita beggja vertexanna
+                ((currentVertex[Y] > py) != (nextVertex[Y] > py)) &&
+                // beita svo Jordan Curve Theorem göldrum til að athuga hvort fjöldi skipta sem
+                // lína frá punktinum "stígur yfir" jaðar polygonsins sé oddatala eða slétt tala
+                (px < (nextVertex[X]-currentVertex[X]) * (py-currentVertex[Y]) / (nextVertex[Y]-currentVertex[Y]) + currentVertex[X]))
+            {
+                collision = !collision;
+            }
         }
     }
 
@@ -2142,6 +2236,8 @@ function collision_polygon_to_point(vertices, px, py)
 // cr -> radíus hringsins (pixel stærð)
 // testInside -> skal athuga hvort hringurinn í heild sinni sé inni í polygoninum?
 //               (þyngra í vinnslu, default er að sleppa því)
+//
+// TODO - hugsa um hvernig sé best að bæta við sensitivity í parametrana
 function collision_polygon_to_circle(vertices, cx, cy, cr, testInside = false)
 {
     // breytur til að auka læsileika
@@ -2198,6 +2294,8 @@ function collision_polygon_to_circle(vertices, cx, cy, cr, testInside = false)
 // rw, rh -> breidd og hæð ferhyrningsins (pixel stærð)
 // testInside -> skal athuga hvort ferhyrningurinn í heild sinni sé inni í polygoninum?
 //               (þyngra í vinnslu, default er að sleppa því)
+//
+// TODO - hugsa um hvernig sé best að bæta við sensitivity í parametrana
 function collision_polygon_to_rectangle(vertices, rx, ry, rw, rh, testInside = false)
 {
     // breytur til að auka læsileika
@@ -2252,6 +2350,8 @@ function collision_polygon_to_rectangle(vertices, rx, ry, rw, rh, testInside = f
 // vertices -> fylki með X,Y hnitum allra punktanna á polygoninum (ATH: ekki m_points, heldur eftir umbreytingar)
 // l1x, l1y -> X og Y hnit á upphafspunkti línunnar (pixel position hnit)
 // l2x, l2y -> X og Y hnit á endapunkti línunnar (pixel position hnit)
+//
+// TODO - hugsa um hvernig sé best að bæta við sensitivity í parametrana
 function collision_polygon_to_line(vertices, l1x, l1y, l2x, l2y)
 {
     // breytur til að auka læsileika
@@ -2296,6 +2396,8 @@ function collision_polygon_to_line(vertices, l1x, l1y, l2x, l2y)
 // vertices2 -> fylki með X,Y hnitum allra punktanna á polygoninum (ATH: ekki m_points, heldur eftir umbreytingar)
 // testInside -> skal athuga hvort polygon2 í heild sinni sé inni í polygon1?
 //               (þyngra í vinnslu, default er að sleppa því)
+//
+// TODO - hugsa um hvernig sé best að bæta við sensitivity í parametrana
 function collision_polygon_to_polygon(vertices1, vertices2, testInside = false)
 {
     // breytur til að auka læsileika
