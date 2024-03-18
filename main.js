@@ -253,17 +253,17 @@ function draw_GUI()
 // teiknar stigin sem leikmaður er kominn með
 function draw_score()
 {
-    draw_text(gameObjects[0].getScore().toString(),5,35);
+    draw_text(gameObjects[0].get_score().toString(),5,35);
 }
 
 // draw_lives()
 // teiknar lífin sem leikmaður á eftir
 function draw_lives()
 {
-    if(gameObjects[0].getLives() > 0)
+    if(gameObjects[0].get_lives() > 0)
     {
         let tmpShip = new Ship(0,60);
-        for(let i = 0; i < gameObjects[0].getLives(); i++)
+        for(let i = 0; i < gameObjects[0].get_lives(); i++)
         {
             tmpShip.m_posX = (i*2.5*grid)+20;
             tmpShip.draw();
@@ -1086,7 +1086,7 @@ class Saucer extends Polygon
         {
             if(collidedObject.m_playerBullet == true)
             {
-                gameObjects[0].giveScore(this.m_pointValue);
+                gameObjects[0].give_score(this.m_pointValue);
             }
         }
     }
@@ -1239,7 +1239,7 @@ class Asteroid extends Polygon
         {
             if(collidedObject.m_playerBullet == true)
             {
-                gameObjects[0].giveScore(this.m_pointValue);
+                gameObjects[0].give_score(this.m_pointValue);
             }
         }
     }
