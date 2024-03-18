@@ -56,10 +56,12 @@ let keys = {
 };
 
 // fylki til að geyma hlutina sem eru til staðar í leiknum
-let asteroids = [];
-let saucers = [];
-let bullets = [];
-let players = []; // sett í fylki til að auka læsileika, mætti kannski nýta í 2 player mode?
+let gameObjects = [];
+
+// breytur til að halda utanum fjölda hluta
+let numBullets = 0;
+let numSaucers = 0;
+let numAsteroids = 0;
 
 let generatedBackground = false;
 let storedBackground;
@@ -91,7 +93,7 @@ function initStuff()
     audioThrust.src = "sounds/thrust.wav";
     audioThrust.loop = true;
 
-    players.push(new Player(playerStartX,playerStartY));
+    gameObjects.push(new Player(playerStartX,playerStartY));
 
     //fyrsta kallið á aðallykkjufallið, það kallar svo sjálft aftur á sig
     window.requestAnimationFrame(update);
@@ -109,53 +111,25 @@ function update()
     //
     // síðan hreyfingar og snúningar
     //
-    move_polygons(players);
-    move_polygons(asteroids);
-    move_polygons(saucers);
-    move_polygons(bullets);
-
-    rotate_polygons(asteroids);
-
-    //
-    // fjarlægja útrunnar kúlur
-    //
-    decay_bullets();
+    move_polygons(gameObjects);
+    rotate_polygons(gameObjects);
 
     //
     //skoða árekstra
     //
-    check_collisions(players,players);
-    check_collisions(players,asteroids);//virkar
-    check_collisions(players,saucers);//virkar
-    check_collisions(players,bullets);//virkar
-
-    //check_collisions(bullets,bullets);// virkar sennilega, en erfitt að testa og nánast ómögulegt að gerist
-    check_collisions(bullets,asteroids);//virkar
-    check_collisions(bullets,saucers);//virkar
-
-    //check_collisions(asteroids,asteroids);//virkar
-    //check_collisions(asteroids,saucers);//virkar
-
-    //check_collisions(saucers,saucers);//virkar
+    check_collisions(gameObjects,gameObjects);
 
     //
     // Hreinsa til eftir árekstra
     //
-    cleanup_polygons(asteroids);
-    cleanup_polygons(saucers);
-    //cleanup_polygons(bullets);
+    cleanup_polygons(gameObjects);
 
     //
     //og að lokum teikna allt sem þarf
     //
     draw_background();
-
-    draw_polygons(asteroids);
-    draw_polygons(saucers);
-    draw_polygons(bullets);
-    draw_polygons(players);
-
-    drawGUI();
+    draw_polygons(gameObjects);
+    draw_GUI();
 
     //
     // kalla svo aftur á update() til að framkvæma næstu lykkju
@@ -197,27 +171,20 @@ function cleanup_polygons(array)
         {
             if(array[i].m_destroyed == true)
             {
-                array.splice(i,1);
-            }
-        }
-    }
-}
+                if(array[i] instanceof Asteroid)
+                {
+                    numAsteroids--;
+                }
+                if(array[i] instanceof BigEnemy || array[i] instanceof SmallEnemy)
+                {
+                    numSaucers--;
+                }
+                if(array[i] instanceof Bullet)
+                {
+                    numBullets--;
+                }
 
-// decay_bullets()
-// fall sem fer í gegnum fylkið af kúlum og fjarlægir þær sem eru útrunnar
-// m_decayed er stillt í move() fallinu í Bullet klasanum þannig að þetta
-// fall þarf að keyrast eftir að move() hefur keyrt
-function decay_bullets()
-{
-    //fara í gegnum kúlurnar
-    if(bullets.length > 0)
-    {
-        for(let i = 0; i < bullets.length; i++)
-        {
-            // fjarlægja kúluna ef hún er orðin of gömul
-            if(bullets[i].m_decayed == true)
-            {
-                bullets.splice(i,1);
+                array.splice(i,1);
             }
         }
     }
@@ -240,6 +207,7 @@ function move_polygons(array)
 
 // rotate_polygons()
 // fall sem fer í gegnum fylki af Polygon klösum og keyrir rotate() fallið þeirra
+// sleppir því ef um leikmanninn er að ræða þar sem hann sér sjálfur um að snúa sér
 //
 // array -> fylki af Polygon klösum
 function rotate_polygons(array)
@@ -248,7 +216,10 @@ function rotate_polygons(array)
     {
         for(let i = 0; i < array.length;i++)
         {
-            array[i].rotate();
+            if((array[i] instanceof Player) == false) // leikmaðurinn sér sjálfur um að snúa sér
+            {
+                array[i].rotate();
+            }
         }
     }
 }
@@ -279,7 +250,7 @@ function randomCoordinates()
 
 // drawGUI()
 // teiknar notendaviðmótið
-function drawGUI()
+function draw_GUI()
 {
     drawScore();
     drawLives();
@@ -289,17 +260,17 @@ function drawGUI()
 // teiknar stigin sem leikmaður er kominn með
 function drawScore()
 {
-    drawText(players[0].getScore().toString(),5,35);
+    drawText(gameObjects[0].getScore().toString(),5,35);
 }
 
 // drawLives()
 // teiknar lífin sem leikmaður á eftir
 function drawLives()
 {
-    if(players[0].getLives() > 0)
+    if(gameObjects[0].getLives() > 0)
     {
         let tmpShip = new Ship(0,60);
-        for(let i = 0; i < players[0].getLives(); i++)
+        for(let i = 0; i < gameObjects[0].getLives(); i++)
         {
             tmpShip.m_posX = (i*2.5*grid)+20;
             tmpShip.draw();
@@ -316,22 +287,22 @@ function handleKeys()
 
     if(keys[KEY_LEFT] == true)
     {
-        players[0].rotate(-players[0].m_rotationSpeed);
+        gameObjects[0].rotate(-gameObjects[0].m_rotationSpeed);
     }
 
     if(keys[KEY_RIGHT] == true)
     {
-        players[0].rotate(players[0].m_rotationSpeed);
+        gameObjects[0].rotate(gameObjects[0].m_rotationSpeed);
     }
 
     if(keys[KEY_UP] == true)
     {
-        players[0].thrust();
+        gameObjects[0].thrust();
         //audioThrust.play();
     }
     else
     {
-        players[0].thrust(0);
+        gameObjects[0].thrust(0);
         //audioThrust.pause();
     }
 
@@ -339,7 +310,7 @@ function handleKeys()
     {
         playerLastShotTime = runtimeMilliseconds;
 
-        players[0].shoot();
+        gameObjects[0].shoot();
 
         audioShoot.currentTime = 0;
         audioShoot.play();
@@ -355,7 +326,7 @@ function handleKeys()
     if(keys[KEY_S] == true) // prufa, býr til random asteroid
     {
         tmpCoords = randomCoordinates();
-        asteroids.push(new Asteroid(tmpCoords[0],tmpCoords[1]));
+        gameObjects.push(new Asteroid(tmpCoords[0],tmpCoords[1]));
     }
 
     if(keys[KEY_E] == true) // prufa, býr til random óvini
@@ -363,24 +334,24 @@ function handleKeys()
         tmpCoords = randomCoordinates();
         if(Math.floor(Math.random() * 50) > 25)
         {
-            saucers.push(new BigEnemy(tmpCoords[0],tmpCoords[1]));
+            gameObjects.push(new BigEnemy(tmpCoords[0],tmpCoords[1]));
         }
         else
         {
-            saucers.push(new SmallEnemy(tmpCoords[0],tmpCoords[1]));
+            gameObjects.push(new SmallEnemy(tmpCoords[0],tmpCoords[1]));
         }
     }
 
     if(keys[KEY_G] == true) // hyperspace
     {
         tmpCoords = randomCoordinates();
-        players[0].m_posX = tmpCoords[0];
-        players[0].m_posY = tmpCoords[1];
+        gameObjects[0].m_posX = tmpCoords[0];
+        gameObjects[0].m_posY = tmpCoords[1];
 
         let randomNumber = Math.floor(Math.random()*62);
-        if(randomNumber >= (asteroids.length+44))
+        if(randomNumber >= (numAsteroids+44))
         {
-            players[0].die();
+            gameObjects[0].die();
         }
     }
 }
@@ -767,7 +738,6 @@ class Polygon
 // erfir allt sem Polygon hefur
 //
 // meðlimabreytur sem bætast við:
-//   m_decayed -> segir til um hvort kúlan er útrunnin
 //   m_birth -> fæðingartími kúlunnar, notað til að reikna hvort hún sé útrunnin
 //   m_playerBullet -> segir til um það hvort kúlunni var skotið af leikmanni eða ekki
 //
@@ -786,10 +756,10 @@ class Bullet extends Polygon
         this.m_movementAngle = 0;
         this.m_angle = 0;
 
-        this.m_decayed = false;
         this.m_birth = runtimeMilliseconds;
-
         this.m_playerBullet = playerBullet;
+
+        numBullets++;
     }
 
     // fall sem hreyfir kúluna eða merkir hana sem útrunna
@@ -802,7 +772,7 @@ class Bullet extends Polygon
         }
         else
         {
-            this.m_decayed = true;
+            this.m_destroyed = true;
         }
     }
 
@@ -1012,7 +982,7 @@ class Player extends Ship
     shoot()
     {
         // passa að búa ekki til fleiri kúlur en mega vera
-        if(bullets.length >= maxBullets)
+        if(numBullets >= maxBullets)
             return;
 
         // hraðavigur fyrir kúluna
@@ -1023,7 +993,7 @@ class Player extends Ship
         let a2 = (2*grid) * Math.cos(degToRad(this.m_movementAngle));
         let b2 = (2*grid) * Math.sin(degToRad(this.m_movementAngle));
 
-        bullets.push(new Bullet((this.m_posX+b2), (this.m_posY-a2), tmpVelX, tmpVelY, true));
+        gameObjects.push(new Bullet((this.m_posX+b2), (this.m_posY-a2), tmpVelX, tmpVelY, true));
     }
 
     draw()
@@ -1090,6 +1060,8 @@ class Saucer extends Polygon
         this.m_movementAngle = Math.floor(Math.random()*359);
 
         this.m_points = [...saucerShape];
+
+        numSaucers++;
     }
 
     // fall sem bregst við árekstrum
@@ -1105,7 +1077,7 @@ class Saucer extends Polygon
             if(collidedWith.m_playerBullet == true)
             {
                 // verðlaunum leikmanninn vegna nákvæmni hans
-                players[0].giveScore(this.m_pointValue);
+                gameObjects[0].giveScore(this.m_pointValue);
             }
         }
     }
@@ -1270,6 +1242,8 @@ class Asteroid extends Polygon
             this.m_minrad = Math.round(this.m_size/3);
             this.m_points = [...randomShape(10,this.m_minrad,this.m_size)];
         }
+
+        numAsteroids++;
     }
 
     draw()
@@ -1311,7 +1285,7 @@ class Asteroid extends Polygon
             if(collidedWith.m_playerBullet == true)
             {
                 // verðlauna leikmanninn fyrir frábært skot
-                players[0].giveScore(this.m_pointValue);
+                gameObjects[0].giveScore(this.m_pointValue);
             }
         }
     }
