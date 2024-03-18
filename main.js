@@ -103,37 +103,25 @@ function initStuff()
 // fall sem hýsir aðallykkju leiksins
 function update()
 {
-    //
     // input höndlun fyrst
-    //
     handleKeys();
 
-    //
     // síðan hreyfingar og snúningar
-    //
     move_polygons(gameObjects);
     rotate_polygons(gameObjects);
 
-    //
     //skoða árekstra
-    //
     check_collisions(gameObjects,gameObjects);
 
-    //
     // Hreinsa til eftir árekstra
-    //
     cleanup_polygons(gameObjects);
 
-    //
     //og að lokum teikna allt sem þarf
-    //
     draw_background();
     draw_polygons(gameObjects);
     draw_GUI();
 
-    //
     // kalla svo aftur á update() til að framkvæma næstu lykkju
-    //
     window.requestAnimationFrame(update);
 }
 
