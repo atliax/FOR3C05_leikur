@@ -42,6 +42,7 @@ const playerMinTimeBetweenShots = 20;// x*10 millisekúndur, 100 er þá == 1 se
 const maxBullets = 10;
 const bulletSpeed = 7;
 const bulletMaxAge = 150;
+const bulletRadius = 2;
 
 // object sem geymir upplýsingar um það hvaða takka er verið að ýta á
 let keys = {
@@ -74,10 +75,10 @@ context.lineWidth = 1;
 //atburðahlustarar
 document.addEventListener("keydown",keydown);
 document.addEventListener("keyup",keyup);
-addEventListener("load",initStuff);
+addEventListener("load",init_stuff);
 
 // virkja timer til að geta tímasett hluti
-let timer = setInterval(incrementTimer,10);
+let timer = setInterval(increment_timer,10);
 
 //tmp fikt
 const doClassicShapes = false;
@@ -85,9 +86,9 @@ const doClassicShapes = false;
 let audioShoot = new Audio();
 let audioThrust = new Audio();
 
-// initStuff()
+// init_stuff()
 // stilla það sem þarf að stilla í upphafi
-function initStuff()
+function init_stuff()
 {
     audioShoot.src = "sounds/shoot.wav";
     audioThrust.src = "sounds/thrust.wav";
@@ -104,7 +105,7 @@ function initStuff()
 function update()
 {
     // input höndlun fyrst
-    handleKeys();
+    handle_keys();
 
     // síðan hreyfingar og snúningar
     move_polygons(gameObjects);
@@ -128,26 +129,30 @@ function update()
 // check_collisions()
 // fer í gegnum 2 fylki og keyrir árekstraprófun á þeim
 //
-// first -> fyrra fylkið af Polygon klösum, check_collision() er keyrt úr þessu fylki
-// second -> seinna fylkið af Polygon klösum, gefið sem færibreyta í check_collision() kallinu
-function check_collisions(first,second)
+// object -> fyrra fylkið af Polygon klösum, check_collision() er keyrt úr þessu fylki
+// target -> seinna fylkið af Polygon klösum, gefið sem færibreyta í check_collision() kallinu
+function check_collisions(object,target)
 {
-    if(first.length > 0)
+    if(object.length > 0)
     {
-        if(second.length > 0)
+        if(target.length > 0)
         {
-            for(let i = 0; i < first.length;i++)
+            for(let i = 0; i < object.length;i++)
             {
-                for(let j = 0; j < second.length;j++)
+                for(let j = 0; j < target.length;j++)
                 {
-                    first[i].check_collision(second[j]);
+                    if(object[i].check_collision(target[j]) == true)
+                    {
+                        object[i].collided_with(target[j]);
+                        target[j].collided_with(object[i]);
+                    }
                 }
             }
         }
     }
 }
 
-// cleanup_array()
+// cleanup_polygons()
 // fer í gegnum fylki af Polygon klösum og eyðir stökum sem eru merkt ónýt
 //
 // array -> fylki af Polygon klösum
@@ -227,33 +232,33 @@ function draw_polygons(array)
     }
 }
 
-// randomCoordinates()
+// random_coordinates()
 // býr til random pixel position skjáhnit
-function randomCoordinates()
+function random_coordinates()
 {
     let X = Math.floor(Math.random()*(context.canvas.width-1));
     let Y = Math.floor(Math.random()*(context.canvas.height-1));
     return [X,Y];
 }
 
-// drawGUI()
+// draw_GUI()
 // teiknar notendaviðmótið
 function draw_GUI()
 {
-    drawScore();
-    drawLives();
+    draw_score();
+    draw_lives();
 }
 
-// drawScore()
+// draw_score()
 // teiknar stigin sem leikmaður er kominn með
-function drawScore()
+function draw_score()
 {
-    drawText(gameObjects[0].getScore().toString(),5,35);
+    draw_text(gameObjects[0].getScore().toString(),5,35);
 }
 
-// drawLives()
+// draw_lives()
 // teiknar lífin sem leikmaður á eftir
-function drawLives()
+function draw_lives()
 {
     if(gameObjects[0].getLives() > 0)
     {
@@ -266,9 +271,9 @@ function drawLives()
     }
 }
 
-// handleKeys()
+// handle_keys()
 // bregst við eftir því sem við á ef takki á lyklaborði er niðri/uppi
-function handleKeys()
+function handle_keys()
 {
     let tmpCoords;
     let timeSinceLast = runtimeMilliseconds-lastKeypress;
@@ -313,13 +318,13 @@ function handleKeys()
 
     if(keys[KEY_S] == true) // prufa, býr til random asteroid
     {
-        tmpCoords = randomCoordinates();
+        tmpCoords = random_coordinates();
         gameObjects.push(new Asteroid(tmpCoords[0],tmpCoords[1]));
     }
 
     if(keys[KEY_E] == true) // prufa, býr til random óvini
     {
-        tmpCoords = randomCoordinates();
+        tmpCoords = random_coordinates();
         if(Math.floor(Math.random() * 50) > 25)
         {
             gameObjects.push(new BigEnemy(tmpCoords[0],tmpCoords[1]));
@@ -332,7 +337,7 @@ function handleKeys()
 
     if(keys[KEY_G] == true) // hyperspace
     {
-        tmpCoords = randomCoordinates();
+        tmpCoords = random_coordinates();
         gameObjects[0].m_posX = tmpCoords[0];
         gameObjects[0].m_posY = tmpCoords[1];
 
@@ -412,7 +417,7 @@ function keyup(event)
     }
 }
 
-// randomShape()
+// random_shape()
 // fall sem býr til handahófskennt form
 // það fer í hring og býr til punkta
 //
@@ -423,7 +428,7 @@ function keyup(event)
 // skilar frá sér fylki af fylkjum með X,Y hnitum
 // t.d. [[x,y],[x2,y2],[x3,y3]]
 // (ekki pixel position hnitum, þau eru seinna sköluð upp með grid breytunni)
-function randomShape(nodes,minR,maxR)
+function random_shape(nodes,minR,maxR)
 {
     // reikna hornið milli punkta út frá fjölda
     let angleStep = (Math.PI * 2) / nodes;
@@ -443,7 +448,7 @@ function randomShape(nodes,minR,maxR)
             x = Math.round(Math.round((Math.cos(angle) * radius) * grid)/grid);
             y = Math.round(Math.round((Math.sin(angle) * radius) * grid)/grid);
         }
-        while(isXYInArray(x,y,tmpRet));
+        while(is_XY_in_array(x,y,tmpRet));
 
         tmpRet.push([x,y]);
     }
@@ -451,12 +456,12 @@ function randomShape(nodes,minR,maxR)
     return tmpRet;
 }
 
-// isXYInArray()
+// is_XY_in_array()
 // athugar hvort hnit séu þegar til staðar í fylki
 //
 // tx, ty -> hnit
 // tmpRet -> fylki
-function isXYInArray(tx,ty,tmpRet)
+function is_XY_in_array(tx,ty,tmpRet)
 {
     if(tmpRet.length == 0)
         return false;
@@ -472,11 +477,11 @@ function isXYInArray(tx,ty,tmpRet)
     return false;
 }
 
-// degToRad()
+// deg_to_rad()
 // breytir gráðum í radíana
 //
 // a -> gráður
-function degToRad(a)
+function deg_to_rad(a)
 {
     return a * (Math.PI/180);
 }
@@ -488,8 +493,8 @@ function degToRad(a)
 // angle -> hornið í gráðum
 function rotate([X,Y],angle)
 {
-    let nX = X*Math.cos(degToRad(angle))-Y*Math.sin(degToRad(angle));
-    let nY = X*Math.sin(degToRad(angle))+Y*Math.cos(degToRad(angle));
+    let nX = X*Math.cos(deg_to_rad(angle))-Y*Math.sin(deg_to_rad(angle));
+    let nY = X*Math.sin(deg_to_rad(angle))+Y*Math.cos(deg_to_rad(angle));
     return [nX,nY];
 }
 
@@ -509,8 +514,11 @@ function rotate([X,Y],angle)
 //   m_movementSpeed -> default hröðun formsins
 //   m_rotationSpeed -> snúningshraði, hversu hratt m_angle breytist
 //   m_points -> fylki af punktum sem er notað til að teikna/mynda formið
+//   m_pointsCollision -> fylki af punktum sem er notað fyrir árekstraprufur
+//                        oftast sama og m_points en stundum slice() af því
 //   m_destroyed -> er formið ónýtt eftir árekstur?
 //   m_pointValue -> stigafjöldi sem leikmaður fær við að eyða þessu formi
+//   m_collided -> merkt þegar formið hefur þegar lent í árekstri, svo að áreksturinn sé ekki merktur tvisvar
 //
 class Polygon
 {
@@ -536,7 +544,10 @@ class Polygon
         this.m_destroyed = false;
         this.m_pointValue = 0;
 
+        this.m_collided = false;
+
         this.m_points = [];
+        this.m_pointsCollision = [];
     }
 
     // meðlimafall sem umreiknar m_points hnit yfir í pixel position hnit
@@ -608,7 +619,7 @@ class Polygon
         if(this instanceof Player)
         {
             // sækja stefnuhorn á hraðanum
-            let velAngle = this.getVelocityAngle();
+            let velAngle = this.get_velocity_angle();
 
             // við viljum bara eiga við hreyfinguna ef það er einhver hreyfing að eiga sér stað
             if(this.m_velX != 0 || this.m_velY != 0)
@@ -633,8 +644,8 @@ class Polygon
         }
 
         // reikna hraðabreytinguna á ásunum
-        let a = this.m_thrust * Math.cos(degToRad(this.m_movementAngle));
-        let b = this.m_thrust * Math.sin(degToRad(this.m_movementAngle));
+        let a = this.m_thrust * Math.cos(deg_to_rad(this.m_movementAngle));
+        let b = this.m_thrust * Math.sin(deg_to_rad(this.m_movementAngle));
 
         // reikna nýja hraðavigurinn
         let tmpVelX = this.m_velX + b;
@@ -699,7 +710,7 @@ class Polygon
 
     // fall sem reiknar út og skilar stefnuhorni núverandi hraðavigurs
     // útkoman er umreiknuð til að passa við m_angle (sem er snúinn um 90 gráður)
-    getVelocityAngle()
+    get_velocity_angle()
     {
         // finna núverandi stefnu á hraðavigri
         let velAngle = Math.atan2(this.m_velY,this.m_velX) * (180/Math.PI);
@@ -717,6 +728,58 @@ class Polygon
         }
 
         return velAngle;
+    }
+
+    // sér um árekstraprófanir fyrir allar gerðir af Polygon afleiðuklösum
+    check_collision(objectToCheck)
+    {
+        // ef við höfum þegar lent í árekstri þá viljum við ekki skoða hann tvisvar
+        if(this.m_collided == true)
+        {
+            return false;
+        }
+
+        // það má ekki rekast á sjálfan sig
+        if(this === objectToCheck)
+        {
+            return false;
+        }
+
+        let collided = false;
+
+        // Bullet klasar eru ekki polygon form eins og hinir
+        // þess vegna þarf að höndla 3 gerðir af árekstrum:
+        // hringur-polygon, hringur-hringur og polygon-polygon
+        if(this instanceof Bullet)
+        {
+            // this = hringur
+            if(objectToCheck instanceof Bullet)
+            {
+                //objectToCheck = hringur
+                collided = collision_circle_to_circle(this.m_posX,this.m_posX,bulletRadius,objectToCheck.m_posX,objectToCheck.m_posY,bulletRadius);
+            }
+            else
+            {
+                //objectToCheck = polygon form
+                collided = collision_polygon_to_polygon(this.screen_coordinates(this.m_pointsCollision),objectToCheck.screen_coordinates(objectToCheck.m_pointsCollision),true);
+            }
+        }
+        else
+        {
+            // this = polygon form
+            if(objectToCheck instanceof Bullet)
+            {
+                //objectToCheck = hringur
+                collided = collision_polygon_to_circle(this.screen_coordinates(this.m_pointsCollision),objectToCheck.m_posX,objectToCheck.m_posY,bulletRadius,true);
+            }
+            else
+            {
+                //objectToCheck = polygon form
+                collided = collision_polygon_to_polygon(this.screen_coordinates(this.m_pointsCollision),objectToCheck.screen_coordinates(objectToCheck.m_pointsCollision),true);
+            }
+        }
+
+        return collided;
     }
 }
 
@@ -771,40 +834,15 @@ class Bullet extends Polygon
         context.save();
         context.fillStyle = "white";
         context.beginPath();
-        context.arc(this.m_posX, this.m_posY, 2, 0, 2*Math.PI);
+        context.arc(this.m_posX, this.m_posY, bulletRadius, 0, 2*Math.PI);
         context.fill();
         context.restore();
     }
 
-    // fall til að athuga hvort kúlan hafi rekist á eitthvað
-    check_collision(objectToCheck)
+    collided_with(collidedObject)
     {
-        // sleppa því að athuga hvort hún hafi rekist á sjálfa sig
-        if(objectToCheck === this)
-        {
-            return;
-        }
-
-        let collision = false;
-
-        // athuga bullet->bullet árekstra
-        if(objectToCheck instanceof Bullet)
-        {
-            collision = collision_point_to_point(this.m_posX,this.m_posY,objectToCheck.m_posX,objectToCheck.m_posY);
-        }
-        else//athuga bullet->asteroid og bullet->saucer árekstra
-        {
-            collision = collision_polygon_to_point(objectToCheck.screen_coordinates(objectToCheck.m_points),this.m_posX,this.m_posY);
-        }
-
-        if(collision == true)
-        {
-            // keyra viðeigandi fall til að bregðast við árekstri
-            objectToCheck.collided(this);
-
-            // og merkja þessa kúlu sem ónýta
-            this.m_destroyed = true;
-        }
+        this.collided = true;
+        this.m_destroyed = true;
     }
 }
 
@@ -833,6 +871,15 @@ class Ship extends Polygon
         else
         {
             this.m_points = [...newShipShape];
+        }
+
+        if(doClassicShapes)
+        {
+            this.m_pointsCollision = this.m_points.slice(0,5);
+        }
+        else
+        {
+            this.m_pointsCollision = this.m_points.slice(0,4);
         }
     }
 
@@ -879,12 +926,12 @@ class Ship extends Polygon
 //
 // meðlimaföll sem bætast við:
 //      thrust() -> virkjar hröðun
-//     isAlive() -> true/false eftir því hvort leikmaður er á lífi
+//    is_alive() -> true/false eftir því hvort leikmaður er á lífi
 //         die() -> myrðir leikmann í köldu blóði
-//   giveScore() -> gefur leikmanni stig
-//    getScore() -> skilar út stigafjölda leikmanns
-//    getLives() -> skilar út aukalífum sem leikmaður á
-//    giveLife() -> gefur leikmanni aukalíf
+//  give_score() -> gefur leikmanni stig
+//   get_score() -> skilar út stigafjölda leikmanns
+//   get_lives() -> skilar út aukalífum sem leikmaður á
+//   give_life() -> gefur leikmanni aukalíf
 //   
 class Player extends Ship
 {
@@ -917,14 +964,7 @@ class Player extends Ship
         this.m_thrust = power;
     }
 
-    // fall sem bregst við árekstrum
-    // TODO
-    collided(collidedWith)
-    {
-        this.die();
-    }
-
-    isAlive()
+    is_alive()
     {
         return this.m_playerAlive;
     }
@@ -946,22 +986,22 @@ class Player extends Ship
         }
     }
 
-    giveScore(num)
+    give_score(num)
     {
         this.m_playerScore += num;
     }
 
-    getScore()
+    get_score()
     {
         return this.m_playerScore;
     }
 
-    getLives()
+    get_lives()
     {
         return this.m_playerLives;
     }
 
-    giveLife(num)
+    give_life(num)
     {
         this.m_playerLives += num;
     }
@@ -974,52 +1014,29 @@ class Player extends Ship
             return;
 
         // hraðavigur fyrir kúluna
-        let tmpVelY = -bulletSpeed * Math.cos(degToRad(this.m_movementAngle));
-        let tmpVelX =  bulletSpeed * Math.sin(degToRad(this.m_movementAngle));
+        let tmpVelY = -bulletSpeed * Math.cos(deg_to_rad(this.m_movementAngle));
+        let tmpVelX =  bulletSpeed * Math.sin(deg_to_rad(this.m_movementAngle));
 
         // staðsetningarvigur fyrir kúluna
-        let a2 = (2*grid) * Math.cos(degToRad(this.m_movementAngle));
-        let b2 = (2*grid) * Math.sin(degToRad(this.m_movementAngle));
+        let a2 = (2*grid) * Math.cos(deg_to_rad(this.m_movementAngle));
+        let b2 = (2*grid) * Math.sin(deg_to_rad(this.m_movementAngle));
 
         gameObjects.push(new Bullet((this.m_posX+b2), (this.m_posY-a2), tmpVelX, tmpVelY, true));
     }
 
     draw()
     {
-        if(this.isAlive())
+        if(this.is_alive())
         {
             super.draw();
         }
     }
 
-    // fall sem athugar árekstra
-    check_collision(objectToCheck)
+    collided_with(collidedObject)
     {
-        // sleppum því að skoða árekstra við okkur sjálf
-        if(objectToCheck === this)
-        {
-            return;
-        }
+        this.collided = true;
 
-        let collision = false;
-
-        // skoða players->bullets árekstra
-        if(objectToCheck instanceof Bullet)
-        {
-            collision = collision_polygon_to_point(this.screen_coordinates(this.m_points),objectToCheck.m_posX,objectToCheck.m_posY);
-        }
-        else// skoða players->players, players->asteroids og players->saucers árekstra
-        {
-            collision = collision_polygon_to_polygon(
-                this.screen_coordinates(this.m_points.slice(0,4)),
-                objectToCheck.screen_coordinates(objectToCheck.m_points));
-        }
-
-        if(collision == true)
-        {
-            // bregðast við árekstrum við okkur
-            this.collided(objectToCheck);
-        }
+        //deyja hérna
     }
 }
 
@@ -1048,26 +1065,9 @@ class Saucer extends Polygon
         this.m_movementAngle = Math.floor(Math.random()*359);
 
         this.m_points = [...saucerShape];
+        this.m_pointsCollision = [...this.m_points];
 
         numSaucers++;
-    }
-
-    // fall sem bregst við árekstrum
-    collided(collidedWith)
-    {
-        // merkjum formið sem ónýtt
-        this.m_destroyed = true;
-
-        // athugum hvort það sem við rákumst á var kúla
-        if(collidedWith instanceof Bullet)
-        {
-            // athugum svo hvort kúlunni var skotið af leikmanni
-            if(collidedWith.m_playerBullet == true)
-            {
-                // verðlaunum leikmanninn vegna nákvæmni hans
-                gameObjects[0].giveScore(this.m_pointValue);
-            }
-        }
     }
 
     draw()
@@ -1077,27 +1077,17 @@ class Saucer extends Polygon
         super.draw(this.m_points.slice(8));
     }
 
-    // athuga árekstra
-    check_collision(objectToCheck)
+    collided_with(collidedObject)
     {
-        // ekki athuga árekstra við sjálfan sig
-        if(objectToCheck === this)
-        {
-            return;
-        }
+        this.m_collided = true;
+        this.m_destroyed = true;
 
-        let collision = false;
-
-        // þetta fall ætti bara að vera keyrt í saucer->saucer árekstrum
-        if(objectToCheck instanceof Saucer)
+        if(collidedObject instanceof Bullet)
         {
-            collision = collision_polygon_to_polygon(this.screen_coordinates(this.m_points.slice(0,8)),objectToCheck.screen_coordinates(objectToCheck.m_points.slice(0,8)));
-        }
-
-        if(collision == true)
-        {
-            // keyra árekstraviðbragð á þeim sem var rekist á
-            objectToCheck.collided(this);
+            if(collidedObject.m_playerBullet == true)
+            {
+                gameObjects[0].giveScore(this.m_pointValue);
+            }
         }
     }
 }
@@ -1228,9 +1218,10 @@ class Asteroid extends Polygon
                 this.m_pointValue = 20;
             }
             this.m_minrad = Math.round(this.m_size/3);
-            this.m_points = [...randomShape(10,this.m_minrad,this.m_size)];
+            this.m_points = [...random_shape(10,this.m_minrad,this.m_size)];
         }
 
+        this.m_pointsCollision = [...this.m_points];
         numAsteroids++;
     }
 
@@ -1239,40 +1230,15 @@ class Asteroid extends Polygon
         super.draw(this.m_points);
     }
 
-    // athuga árekstra
-    check_collision(objectToCheck)
+    collided_with(collidedObject)
     {
-        // sleppa því að athuga árekstra við sjálfan sig
-        if(objectToCheck === this)
-        {
-            return;
-        }
-
-        let collision = false;
-
-        //þetta ætti bara að keyra í asteroid->asteroid og asteroid->saucers árekstrum
-        collision = collision_polygon_to_polygon(this.screen_coordinates(this.m_points),objectToCheck.screen_coordinates(objectToCheck.m_points));
-
-        if(collision == true)
-        {
-            // keyra viðeigandi árekstraviðbragð
-            objectToCheck.collided(this);
-        }
-    }
-
-    // bregðast við árekstrum
-    collided(collidedWith)
-    {
-        // merkja sem ónýtt
+        this.m_collided = true;
         this.m_destroyed = true;
 
-        //athuga hvort það var kúla sem rakst á okkur
-        if(collidedWith instanceof Bullet)
+        if(collidedObject instanceof Bullet)
         {
-            // athuga hvort það var leikmaður sem skaut henni
-            if(collidedWith.m_playerBullet == true)
+            if(collidedObject.m_playerBullet == true)
             {
-                // verðlauna leikmanninn fyrir frábært skot
                 gameObjects[0].giveScore(this.m_pointValue);
             }
         }
@@ -1462,12 +1428,12 @@ let font = {
     [[[0,0],[2,0]]]
 };
 
-// drawText()
+// draw_text()
 // fall sem teiknar textastreng
 //
 // text -> textastrengurinn
 // X, Y -> pixel position hnit á skjánum
-function drawText(text,X,Y)
+function draw_text(text,X,Y)
 {
     // fonturinn hefur enga litla stafi
     text = text.toUpperCase();
@@ -1477,17 +1443,17 @@ function drawText(text,X,Y)
         let charCode = text.charCodeAt(i);
         if((charCode >= 48 && charCode <= 58) || (charCode >= 65 && charCode <= 90) || charCode == 95)
         {
-            drawLetter(text.charAt(i),X+(i*3*grid),Y);
+            draw_letter(text.charAt(i),X+(i*3*grid),Y);
         }
     }
 }
 
-// drawLetter()
+// draw_letter()
 // fall til að teikna stakan staf. Stafir sem eru ekki skilgreindir í font objectinu teiknast sem bil
 // 
 // letter -> stafur til að teikna
 //  X,  Y -> pixel position hnit á skjánum
-function drawLetter(letter,X,Y)
+function draw_letter(letter,X,Y)
 {
     // hliðra hnitunum á canvasinum til að stafirnir komi ekki blurry
     context.translate(0.5,0.5);
@@ -1501,8 +1467,8 @@ function drawLetter(letter,X,Y)
         let Y1 = font[letter][0][0][1];// efri Y
         let X2 = font[letter][0][1][0];// neðri X
         let Y2 = font[letter][0][1][1];// neðri Y
-        drawCircle(X1,Y1,X,Y);
-        drawCircle(X2,Y2,X,Y);
+        draw_circle(X1,Y1,X,Y);
+        draw_circle(X2,Y2,X,Y);
     }
     else
     {
@@ -1513,7 +1479,7 @@ function drawLetter(letter,X,Y)
             let Y1 = font[letter][i][0][1];
             let X2 = font[letter][i][1][0];
             let Y2 = font[letter][i][1][1];
-            drawLine(X1,Y1,X2,Y2,X,Y);
+            draw_line(X1,Y1,X2,Y2,X,Y);
         }
     }
 
@@ -1521,12 +1487,12 @@ function drawLetter(letter,X,Y)
     context.translate(-0.5,-0.5);
 }
 
-// drawCircle()
+// draw_circle()
 // fall til að teikna stakan radius 2 hring
 //
 //     X,     Y -> staðsetning hringsins í 2x3 grid, samskonar og font objectið notar
 // drawX, drawY -> pixel position hnit á skjánum
-function drawCircle(X,Y,drawX,drawY)
+function draw_circle(X,Y,drawX,drawY)
 {
     // geyma teiknistillingarnar á canvasnum
     context.save();
@@ -1541,13 +1507,13 @@ function drawCircle(X,Y,drawX,drawY)
     context.restore();
 }
 
-// drawLine()
+// draw_line()
 // fall sem teiknar staka línu
 //
 //    X1,    Y1 -> upphafspunktur, 2x3 grid
 //    X2,    Y2 -> endapunktur, 2x3 grid
 // drawX, drawY -> pixel position hnit á skjánum
-function drawLine(X1,Y1,X2,Y2,drawX,drawY)
+function draw_line(X1,Y1,X2,Y2,drawX,drawY)
 {
     context.beginPath();
     context.moveTo((X1*grid)+drawX,(Y1*grid)+drawY);
@@ -1660,9 +1626,9 @@ const classicAsteroidShapes =
      [  -2, 0.5]]
 ];
 
-// incrementTimer()
+// increment_timer()
 // telur upp um 1 fyrir hverjar 10 millisekúndur
-function incrementTimer()
+function increment_timer()
 {
     runtimeMilliseconds++;
 }
