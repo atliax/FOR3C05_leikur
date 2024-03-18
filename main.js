@@ -2176,56 +2176,84 @@ function collision_line_to_rectangle(l1x,l1y,l2x,l2y,rx,ry,rw,rh,sensitivity = 0
 // Ef næmnin er notuð, þá smíðar fallið hring á punktinum með næmnina sem radíus
 // og athugar svo hvort sá hringur rekist á polygoninn sem er verið að bera saman við
 // Það þýðir að næmnin hækkar með hækkandi gildi
+//
+// Þetta fall notar aðferðina að telja hversu oft polygoninn "snýst" í kringum punktinn
+// ef útkoman er 0, þá liggur punkturinn utan við polygoninn
+// ef útkoman er eitthvað annað en 0, þá liggur punkturinn inni í polygoninum
 function collision_polygon_to_point(vertices, px, py, sensitivity = 0, testInside = false)
 {
     // breytur til að auka læsileika
     const X = 0;
     const Y = 1;
 
-    let collision = false;
+    let windings = 0;
+    let next = 0;
 
     if(sensitivity > 0)
     {
-        collision = collision_polygon_to_circle(vertices,px,py,sensitivity,testInside);
+        if(collision_polygon_to_circle(vertices,px,py,sensitivity,testInside) == true)
+        {
+            // merkja að það hafi orðið árekstur
+            windings = 1;
+        }
     }
     else
     {
-        let next = 0;
         // fara yfir alla punktana á polygoninum
-        for(let current = 0; current < vertices.length; current++)
+        for(let current = 0;current < vertices.length;current++)
         {
             // sækja index á næsta punkti
             next = current + 1;
-    
+
             // ef við erum komin út fyrir fylkið, þá notum við fyrsta sem endapunkt
             if(next == vertices.length)
             {
                 next = 0;
             }
-    
+
+            // sækja punktana sem er verið að vinna með
             let currentVertex = vertices[current];
             let nextVertex = vertices[next];
-    
-            if(
-                // athuga fyrst hvort Y hnit punktsins liggi á milli Y hnita beggja vertexanna
-                ((currentVertex[Y] > py) != (nextVertex[Y] > py)) &&
-                // beita svo Jordan Curve Theorem göldrum til að athuga hvort fjöldi skipta sem
-                // lína frá punktinum "stígur yfir" jaðar polygonsins sé oddatala eða slétt tala
-                (px < (nextVertex[X]-currentVertex[X]) * (py-currentVertex[Y]) / (nextVertex[Y]-currentVertex[Y]) + currentVertex[X]))
+
+            // ef við byrjum neðan við
+            if(currentVertex[Y] <= py)
             {
-                collision = !collision;
+                // og förum upp
+                if(nextVertex[Y] > py)
+                {
+                    // og ef px,py er vinstra megin við línuna sem punktarnir marka
+                    if(collision_util_heron(currentVertex[X],currentVertex[Y],nextVertex[X],nextVertex[Y],px,py) > 0)
+                    {
+                        // þá bætist við snúningur
+                        windings++;
+                    }
+                }
+            }
+            else// ef við byrjum ofan við
+            {
+                // og förum niður
+                if(nextVertex[Y] <= py)
+                {
+                    // og ef px,py er hægra megin við línuna sem punktarnir marka
+                    if(collision_util_heron(currentVertex[X],currentVertex[Y],nextVertex[X],nextVertex[Y],px,py) < 0)
+                    {
+                        // þá dregst frá snúningur
+                        windings--;
+                    }
+                }
             }
         }
     }
 
-    // oddatala = true -> punkturinn liggur inni í polygoninum
-    // slétt tala = false -> punkturinn liggur utan við polygoninn
-    //
-    // sjá hér: https://sidvind.com/wiki/Point-in-polygon:_Jordan_Curve_Theorem
-    // og hér: https://en.wikipedia.org/wiki/Point_in_polygon
-    // fyrir nánari útskýringar
-
-    return collision;
+    // ef snúningarnir voru nákvæmlega 0 þá var ekki árekstur
+    if(windings == 0)
+    {
+        return false;
+    }
+    else// ef eitthvað annað en 0 kom út, þá var árekstur
+    {
+        return true;
+    }
 }
 
 // collision_polygon_to_circle()
@@ -2455,14 +2483,14 @@ function collision_polygon_to_polygon(vertices1, vertices2, testInside = false)
 // px, py -> X og Y hnit á punktinum (pixel position hnit)
 function collision_triangle_to_point(t1x,t1y,t2x,t2y,t3x,t3y,px,py)
 {
-    // formúla Herons til að finna flatarmál þríhyrningsins
-    let areaT = Math.abs(((t2x-t1x)*(t3y-t1y))-((t3x-t1x)*(t2y-t1y)));
+    // notum Heron til að finna flatarmál þríhyrningsins
+    let areaT = Math.abs(collision_util_heron(t1x,t1y,t2x,t2y,t3x,t3y));
 
     // myndum svo 3 nýja þríhyrninga með px,py punktinum og hverri hlið um sig í upprunalega þríhyrningnum
-    // og reiknum flatarmál þeirra með formúlu Herons
-    let area1 = Math.abs(((t1x-px)*(t2y-py))-((t2x-px)*(t1y-py)));
-    let area2 = Math.abs(((t2x-px)*(t2y-py))-((t3x-px)*(t2y-py)));
-    let area3 = Math.abs(((t3x-px)*(t1y-py))-((t1x-px)*(t3y-py)));
+    // og reiknum flatarmál þeirra með Heron
+    let area1 = Math.abs(collision_util_heron(px,py,t1x,t1y,t2x,t2y));
+    let area2 = Math.abs(collision_util_heron(px,py,t2x,t2y,t3x,t3y));
+    let area3 = Math.abs(collision_util_heron(px,py,t3x,t3y,t1x,t1y));
 
     // ef samanlagt flatarmál þessara 3 þríhyrninga er það sama og flatarmál upprunalega þríhyrningsins
     // þá er árekstur
@@ -2472,4 +2500,21 @@ function collision_triangle_to_point(t1x,t1y,t2x,t2y,t3x,t3y,px,py)
     }
 
     return false;
+}
+
+// collision_util_heron()
+// athugar hvar punktur liggur miðað við línu
+// notar formúlu Herons til að reikna flatarmál þríhyrnings sem punktarnir mynda
+//
+// p1x, p1y -> X, Y hnit á punkti sem liggur á línunni
+// p2x, p2y -> X, Y hnit á öðrum punkti sem liggur á línunni
+// p3x, p3y -> X, Y hnit á punktinum sem er verið að skoða
+//
+// svargildi:
+// neikvæð tala -> punkturinn er hægra megin við línuna
+//            0 -> punkturinn er á línunni
+//  jákvæð tala -> punkturinn er vinstra megin við línuna
+function collision_util_heron(p1x,p1y,p2x,p2y,p3x,p3y)
+{
+    return ((p2x-p1x)*(p3y-p1y)-(p3x-p1x)*(p2y-p1y));
 }
