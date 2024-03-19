@@ -1,3 +1,4 @@
+/******************************************************************************/
 const canvas = document.getElementById('mainCanvas');
 const context = canvas.getContext('2d');
 
@@ -34,6 +35,8 @@ const playerRotationSpeed = 7;
 const playerStartLives = 4;
 const playerDrag = 0.025;
 
+const playerDeadTime = 100;
+
 // tímabreytur til að hindra það að fleiri en 1 skot skjótist í einu
 let playerLastShotTime = 0;
 const playerMinTimeBetweenShots = 20;// x*10 millisekúndur, 100 er þá == 1 sek.
@@ -56,14 +59,6 @@ let keys = {
     KEY_G: false
 };
 
-// fylki til að geyma hlutina sem eru til staðar í leiknum
-let gameObjects = [];
-
-// breytur til að halda utanum fjölda hluta
-let numBullets = 0;
-let numSaucers = 0;
-let numAsteroids = 0;
-
 let generatedBackground = false;
 let storedBackground;
 
@@ -83,8 +78,23 @@ let timer = setInterval(increment_timer,10);
 //tmp fikt
 const doClassicShapes = false;
 
+/******************************************************************************/
+
+// fylki til að geyma hlutina sem eru til staðar í leiknum
+let gameObjects = [];
+
+// breytur til að halda utanum fjölda hluta
+let numBullets = 0;
+let numSaucers = 0;
+let numAsteroids = 0;
+
 let audioShoot = new Audio();
 let audioThrust = new Audio();
+let audioExplosionSmall = new Audio();
+let audioExplosionMedium = new Audio();
+let audioExplosionLarge = new Audio();
+
+/******************************************************************************/
 
 // init_stuff()
 // stilla það sem þarf að stilla í upphafi
@@ -93,6 +103,9 @@ function init_stuff()
     audioShoot.src = "sounds/shoot.wav";
     audioThrust.src = "sounds/thrust.wav";
     audioThrust.loop = true;
+    audioExplosionSmall.src = "sounds/explosion_small.wav";
+    audioExplosionMedium.src = "sounds/explosion_medium.wav";
+    audioExplosionLarge.src = "sounds/explosion_large.wav";
 
     gameObjects.push(new Player(playerStartX,playerStartY));
 
@@ -733,6 +746,18 @@ class Polygon
     // sér um árekstraprófanir fyrir allar gerðir af Polygon afleiðuklösum
     check_collision(objectToCheck)
     {
+        // engir árekstrar fyrir dauðan leikmann
+        if(this instanceof DeadPlayerSegment || objectToCheck instanceof DeadPlayerSegment)
+        {
+            return false;
+        }
+
+        // engir árekstrar fyrir hráan LineSegment heldur
+        if(this instanceof LineSegment || objectToCheck instanceof LineSegment)
+        {
+            return false;
+        }
+
         // ef við höfum þegar lent í árekstri þá viljum við ekki skoða hann tvisvar
         if(this.m_collided == true)
         {
@@ -946,6 +971,8 @@ class Player extends Ship
 
         this.m_playerScore = 0;
         this.m_playerAlive = true;
+
+        this.m_timeOfLastDeath = 0;
     }
 
     //meðlimafall sem stillir hröðun formsins
@@ -971,14 +998,51 @@ class Player extends Ship
 
     die()
     {
-        this.m_playerAlive = false;
+        if(this.m_playerAlive == false)
+        {
+            return;
+        }
 
+        audioExplosionSmall.play();
+
+        this.m_timeOfLastDeath = runtimeMilliseconds;
+        this.m_playerAlive = false;
         this.m_playerLives--;
 
-        // ef gildið er -1, þá átti leikmaðurinn engin aukalíf þegar hann dó
+        let numLines = 4;
+        if(doClassicShapes == true)
+        {
+            numLines = 5;
+        }
+
+        let next = 0;
+        for(let i = 0; i < numLines;i++)
+        {
+            next = i+1;
+            if(next == numLines)
+            {
+                next = 0;
+            }
+
+            let linePoints = [];
+            linePoints.push(this.m_points[i]);
+            linePoints.push(this.m_points[next]);
+
+            gameObjects.push(new DeadPlayerSegment(this.m_posX,this.m_posY,linePoints,this.m_velX,this.m_velY,this.m_angle));
+        }
+    }
+
+    resurrect()
+    {
         if(this.m_playerLives > -1)
         {
             this.m_playerAlive = true;
+            this.m_posX = playerStartX;
+            this.m_posY = playerStartY;
+            this.m_velX = 0;
+            this.m_velY = 0;
+            this.m_angle = 0;
+            //this.m_movementAngle = 0;
         }
         else
         {
@@ -1030,13 +1094,96 @@ class Player extends Ship
         {
             super.draw();
         }
+        else
+        {
+            if(runtimeMilliseconds-this.m_timeOfLastDeath >= playerDeadTime)
+            {
+                this.resurrect();
+            }
+        }
     }
 
     collided_with(collidedObject)
     {
         this.collided = true;
 
-        //deyja hérna
+        this.die();
+    }
+}
+
+class LineSegment extends Polygon
+{
+    constructor(X,Y,points,velX,velY,rotationSpeed,angle)
+    {
+        super();
+
+        this.m_posX = X;
+        this.m_posY = Y;
+
+        this.m_velX = velX;
+        this.m_velY = velY;
+
+        this.m_angle = angle;
+
+        this.m_rotationSpeed = rotationSpeed;
+
+        this.m_points = [...points];
+    }
+
+    draw()
+    {
+        super.draw(this.m_points);
+    }
+}
+
+class DeadPlayerSegment extends LineSegment
+{
+    constructor(X,Y,points,velX,velY,angle)
+    {
+        // reikna random offset fyrir X,Y?
+
+        // reikna random átt fyrir rotation hraða
+        let tmpRotation = 1;
+        let tmpRandom = Math.floor(Math.random() * 99);
+        if(tmpRandom <= 49)
+        {
+            tmpRotation *= -1;
+        }
+
+        // fuzza velX og velY smá
+        if(velX != 0)
+        {
+            velX *= Math.random();
+        }
+        else
+        {
+            velX = Math.random();
+        }
+
+        if(velY != 0)
+        {
+            velY *= Math.random();
+        }
+        else
+        {
+            velY = Math.random();
+        }
+
+        super(X,Y,points,velX,velY,tmpRotation,angle);
+
+        this.m_birth = runtimeMilliseconds;
+    }
+
+    draw()
+    {
+        if(runtimeMilliseconds-this.m_birth < playerDeadTime)
+        {
+            super.draw();
+        }
+        else
+        {
+            this.m_destroyed = true;
+        }
     }
 }
 
@@ -1088,6 +1235,16 @@ class Saucer extends Polygon
             {
                 gameObjects[0].give_score(this.m_pointValue);
             }
+        }
+
+        switch(this.m_pointValue)
+        {
+            case 1000:
+                audioExplosionSmall.play();
+                break;
+            case 200:
+                audioExplosionLarge.play();
+                break;
         }
     }
 }
@@ -1241,6 +1398,19 @@ class Asteroid extends Polygon
             {
                 gameObjects[0].give_score(this.m_pointValue);
             }
+        }
+
+        switch(this.m_pointValue)
+        {
+            case 100:
+                audioExplosionSmall.play();
+                break;
+            case 50:
+                audioExplosionMedium.play();
+                break;
+            case 20:
+                audioExplosionLarge.play();
+                break;
         }
     }
 }
