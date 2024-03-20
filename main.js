@@ -860,7 +860,16 @@ class Polygon
     // sér um árekstraprófanir fyrir allar gerðir af Polygon afleiðuklösum
     check_collision(objectToCheck)
     {
-        // engir árekstrar fyrir dauðan leikmann
+        // engir árekstrar fyrir ósýnilegan og látinn leikmann
+        if(this instanceof Player || objectToCheck instanceof Player)
+        {
+            if(gameObjects[0].is_alive() == false)
+            {
+                return;
+            }
+        }
+
+        // engir árekstrar fyrir líkamsleifar leikmanns
         if(this instanceof DeadPlayerSegment || objectToCheck instanceof DeadPlayerSegment)
         {
             return false;
