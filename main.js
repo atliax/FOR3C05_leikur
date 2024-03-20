@@ -71,6 +71,8 @@ context.lineWidth = 1;
 document.addEventListener("keydown",keydown);
 document.addEventListener("keyup",keyup);
 addEventListener("load",init_stuff);
+canvas.addEventListener("mouseup",mouse_up);
+canvas.addEventListener("mousemove",mouse_move);
 
 // virkja timer til að geta tímasett hluti
 let timer = setInterval(increment_timer,10);
@@ -79,6 +81,9 @@ let timer = setInterval(increment_timer,10);
 const doClassicShapes = false;
 
 /******************************************************************************/
+
+let waveNumber = 1;
+let gameStarted = false;
 
 // fylki til að geyma hlutina sem eru til staðar í leiknum
 let gameObjects = [];
@@ -96,6 +101,18 @@ let audioExplosionLarge = new Audio();
 
 /******************************************************************************/
 
+function spawn_asteroids()
+{
+    if(numAsteroids == 0)
+    {
+        for(let i = 0; i < 4; i++)
+        {
+            let randomLocation = random_coordinates();
+            gameObjects.push(new Asteroid(randomLocation[0],randomLocation[1]));
+        }
+    }
+}
+
 // init_stuff()
 // stilla það sem þarf að stilla í upphafi
 function init_stuff()
@@ -110,33 +127,131 @@ function init_stuff()
     gameObjects.push(new Player(playerStartX,playerStartY));
 
     //fyrsta kallið á aðallykkjufallið, það kallar svo sjálft aftur á sig
-    window.requestAnimationFrame(update);
+    window.requestAnimationFrame(main_loop);
 }
 
 // update()
 // fall sem hýsir aðallykkju leiksins
-function update()
+function main_loop()
 {
-    // input höndlun fyrst
-    handle_keys();
+    if(gameStarted == true)
+    {
+        spawn_asteroids();
 
-    // síðan hreyfingar og snúningar
-    move_polygons(gameObjects);
-    rotate_polygons(gameObjects);
+        // input höndlun fyrst
+        handle_keys();
+    
+        // síðan hreyfingar og snúningar
+        move_polygons(gameObjects);
+        rotate_polygons(gameObjects);
+    
+        //skoða árekstra
+        check_collisions(gameObjects,gameObjects);
+    
+        // Hreinsa til eftir árekstra
+        cleanup_polygons(gameObjects);
+    
+        //og að lokum teikna allt sem þarf
+        draw_background();
+        draw_polygons(gameObjects);
+        draw_GUI();
+    }
+    else
+    {
+        draw_background();
 
-    //skoða árekstra
-    check_collisions(gameObjects,gameObjects);
-
-    // Hreinsa til eftir árekstra
-    cleanup_polygons(gameObjects);
-
-    //og að lokum teikna allt sem þarf
-    draw_background();
-    draw_polygons(gameObjects);
-    draw_GUI();
+        draw_main_menu();
+    }
 
     // kalla svo aftur á update() til að framkvæma næstu lykkju
-    window.requestAnimationFrame(update);
+    window.requestAnimationFrame(main_loop);
+}
+
+let mainMenuMouseOver = [false,false];
+let mainMenuItems = ["NEW GAME","HIGH SCORES"];
+
+function draw_main_menu()
+{
+    let logoText = "ASTEROIDS";
+    let logoX = context.canvas.width/2-(9*3*grid/2);
+    let logoY = (context.canvas.height/2+(1*grid))/2;
+    draw_text(logoText,logoX,logoY);
+
+    for(let i = 0; i < mainMenuItems.length;i++)
+    {
+        draw_menu_text(i,mainMenuItems[i]);
+    }
+}
+
+function draw_menu_text(index,text)
+{
+    let locationX = context.canvas.width/2-(text.length*3*grid/2);
+    let locationY = context.canvas.height/2+(1*grid)+(index*4*grid);
+    let color = mainMenuMouseOver[index] == true ? "green" : "white";
+
+    draw_text(text,locationX,locationY,color);
+}
+
+function main_menu_select(option)
+{
+    switch(option)
+    {
+        case 0://NEW GAME
+            gameStarted = true;
+            break;
+        case 1://HIGH SCORES
+            break;
+    }
+}
+
+function mouse_move(event)
+{
+    if(gameStarted == false)
+    {
+        let mouseX = event.pageX - this.offsetLeft;
+        let mouseY = event.pageY - this.offsetTop;
+
+        for(let i = 0; i < mainMenuItems.length; i++)
+        {
+            mainMenuMouseOver[i] = false;
+
+            let targetX = context.canvas.width/2-((mainMenuItems[i].length)*3*grid/2);
+            let targetW = ((mainMenuItems[i].length)*3*grid);
+            let targetY = context.canvas.height/2+(i*4*grid)-(2*grid);
+            let targetH = 3*grid;
+    
+            let hitTarget = collision_point_to_rectangle(mouseX,mouseY,targetX,targetY,targetW,targetH);
+
+            if(hitTarget == true)
+            {
+                mainMenuMouseOver[i] = true;
+            }
+        }
+    }
+}
+
+function mouse_up(event)
+{
+    if(gameStarted == false)
+    {
+        let mouseX = event.pageX - this.offsetLeft;
+        let mouseY = event.pageY - this.offsetTop;
+
+        for(let i = 0; i < mainMenuItems.length; i++)
+        {
+            let targetX = context.canvas.width/2-((mainMenuItems[i].length)*3*grid/2);
+            let targetW = ((mainMenuItems[i].length)*3*grid);
+            let targetY = context.canvas.height/2+(i*4*grid)-(2*grid);
+            let targetH = 3*grid;
+    
+            let hitTarget = collision_point_to_rectangle(mouseX,mouseY,targetX,targetY,targetW,targetH);
+    
+            if(hitTarget == true)
+            {
+                main_menu_select(i);
+            }
+        }
+    }
 }
 
 // check_collisions()
@@ -317,9 +432,6 @@ function handle_keys()
         playerLastShotTime = runtimeMilliseconds;
 
         gameObjects[0].shoot();
-
-        audioShoot.currentTime = 0;
-        audioShoot.play();
     }
 
     // smá bremsa á lyklaborðsinput sem eru höndluð neðar í fallinu
@@ -329,11 +441,13 @@ function handle_keys()
         lastKeypress = runtimeMilliseconds;
     }
 
+    /*
     if(keys[KEY_S] == true) // prufa, býr til random asteroid
     {
         tmpCoords = random_coordinates();
         gameObjects.push(new Asteroid(tmpCoords[0],tmpCoords[1]));
     }
+    */
 
     if(keys[KEY_E] == true) // prufa, býr til random óvini
     {
@@ -758,6 +872,12 @@ class Polygon
             return false;
         }
 
+        // engir asteroid->asteroid árekstrar
+        if(this instanceof Asteroid && objectToCheck instanceof Asteroid)
+        {
+            return false;
+        }
+
         // ef við höfum þegar lent í árekstri þá viljum við ekki skoða hann tvisvar
         if(this.m_collided == true)
         {
@@ -1042,7 +1162,7 @@ class Player extends Ship
             this.m_velX = 0;
             this.m_velY = 0;
             this.m_angle = 0;
-            //this.m_movementAngle = 0;
+            this.m_movementAngle = 0;
         }
         else
         {
@@ -1076,6 +1196,12 @@ class Player extends Ship
         // passa að búa ekki til fleiri kúlur en mega vera
         if(numBullets >= maxBullets)
             return;
+
+        if(!this.is_alive())
+            return;
+
+        audioShoot.currentTime = 0;
+        audioShoot.play();
 
         // hraðavigur fyrir kúluna
         let tmpVelY = -bulletSpeed * Math.cos(deg_to_rad(this.m_movementAngle));
@@ -1603,7 +1729,7 @@ let font = {
 //
 // text -> textastrengurinn
 // X, Y -> pixel position hnit á skjánum
-function draw_text(text,X,Y)
+function draw_text(text,X,Y,color = "white")
 {
     // fonturinn hefur enga litla stafi
     text = text.toUpperCase();
@@ -1613,7 +1739,7 @@ function draw_text(text,X,Y)
         let charCode = text.charCodeAt(i);
         if((charCode >= 48 && charCode <= 58) || (charCode >= 65 && charCode <= 90) || charCode == 95)
         {
-            draw_letter(text.charAt(i),X+(i*3*grid),Y);
+            draw_letter(text.charAt(i),X+(i*3*grid),Y,color);
         }
     }
 }
@@ -1623,7 +1749,7 @@ function draw_text(text,X,Y)
 // 
 // letter -> stafur til að teikna
 //  X,  Y -> pixel position hnit á skjánum
-function draw_letter(letter,X,Y)
+function draw_letter(letter,X,Y,color = "white")
 {
     // hliðra hnitunum á canvasinum til að stafirnir komi ekki blurry
     context.translate(0.5,0.5);
@@ -1637,8 +1763,8 @@ function draw_letter(letter,X,Y)
         let Y1 = font[letter][0][0][1];// efri Y
         let X2 = font[letter][0][1][0];// neðri X
         let Y2 = font[letter][0][1][1];// neðri Y
-        draw_circle(X1,Y1,X,Y);
-        draw_circle(X2,Y2,X,Y);
+        draw_circle(X1,Y1,X,Y,color);
+        draw_circle(X2,Y2,X,Y,color);
     }
     else
     {
@@ -1649,7 +1775,7 @@ function draw_letter(letter,X,Y)
             let Y1 = font[letter][i][0][1];
             let X2 = font[letter][i][1][0];
             let Y2 = font[letter][i][1][1];
-            draw_line(X1,Y1,X2,Y2,X,Y);
+            draw_line(X1,Y1,X2,Y2,X,Y,color);
         }
     }
 
@@ -1662,12 +1788,12 @@ function draw_letter(letter,X,Y)
 //
 //     X,     Y -> staðsetning hringsins í 2x3 grid, samskonar og font objectið notar
 // drawX, drawY -> pixel position hnit á skjánum
-function draw_circle(X,Y,drawX,drawY)
+function draw_circle(X,Y,drawX,drawY,color = "white")
 {
     // geyma teiknistillingarnar á canvasnum
     context.save();
 
-    context.fillStyle = 'white';
+    context.fillStyle = color;
 
     context.beginPath();
     context.arc((X*grid)+drawX,(Y*grid)+drawY,2,0,2*Math.PI);
@@ -1683,12 +1809,15 @@ function draw_circle(X,Y,drawX,drawY)
 //    X1,    Y1 -> upphafspunktur, 2x3 grid
 //    X2,    Y2 -> endapunktur, 2x3 grid
 // drawX, drawY -> pixel position hnit á skjánum
-function draw_line(X1,Y1,X2,Y2,drawX,drawY)
+function draw_line(X1,Y1,X2,Y2,drawX,drawY,color = "white")
 {
+    context.save();
+    context.strokeStyle = color;
     context.beginPath();
     context.moveTo((X1*grid)+drawX,(Y1*grid)+drawY);
     context.lineTo((X2*grid)+drawX,(Y2*grid)+drawY);
     context.stroke();
+    context.restore();
 }
 
 // nokkur fylki til að halda utan um ýmis form
