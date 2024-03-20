@@ -1,5 +1,16 @@
 /******************************************************************************/
 
+// virkja timer til að geta tímasett hluti
+let timer = setInterval(increment_timer,10);
+
+// keyrslan byrjar svo hérna:
+addEventListener("load",init_stuff);
+
+/*******************************************************************************
+*                          constantar fyrir ýmsa hluti                         *
+*******************************************************************************/
+
+// canvasinn þar sem allir galdrarnir gerast
 const canvas = document.getElementById('mainCanvas');
 const context = canvas.getContext('2d');
 
@@ -13,23 +24,20 @@ const KEY_S = 83;
 const KEY_E = 69;
 const KEY_G = 71;
 
+// constantar til að auðvelda læsileika í Asteroid klassa
 const SMALL_ASTEROID = 0;
 const MEDIUM_ASTEROID = 1;
 const LARGE_ASTEROID = 2;
-
-// timer breyta sem telur upp um 1 fyrir hverjar 10 millisekúndur
-let runtimeMilliseconds = 0;
-
-// breyta sem geymir runtimeMilliseconds gildið á seinasta lyklaborðsinputi
-// (til að koma í veg fyrir að það triggerist of oft)
-// TODO: finna góðan meðalveg til að geta notað þetta á alla takkana?
-let lastKeypress = 0;
 
 // fjöldi stjarna á bakgrunnsmynd
 const NUM_STARS = 500;
 
 // skölunarbreyta fyrir öll form/hluti
 const grid = 10;
+
+// stærð á letri
+const fontWidth = 3 * grid;
+const fontHeight = 4 * grid;
 
 // constantar fyrir leikmann
 const playerStartX = context.canvas.width/2;
@@ -42,6 +50,24 @@ const playerDrag = 0.025;
 const playerDeadTime = 100;
 const playerExtraLifeScore = 10000;
 
+// constantar fyrir kúlur
+const maxBullets = 10;
+const bulletSpeed = 7;
+const bulletMaxAge = 150;
+const bulletRadius = 2;
+
+/*******************************************************************************
+*                             breytur fyrir ýmsa hluti                         *
+*******************************************************************************/
+
+// timer breyta sem telur upp um 1 fyrir hverjar 10 millisekúndur
+let runtimeMilliseconds = 0;
+
+// breyta sem geymir runtimeMilliseconds gildið á seinasta lyklaborðsinputi
+// (til að koma í veg fyrir að það triggerist of oft)
+// TODO: finna góðan meðalveg til að geta notað þetta á alla takkana?
+let lastKeypress = 0;
+
 // tímabreytur til að hindra það að fleiri en 1 skot skjótist í einu
 let playerLastShotTime = 0;
 const playerMinTimeBetweenShots = 20;// x*10 millisekúndur, 100 er þá == 1 sek.
@@ -53,13 +79,9 @@ const playerMinTimeBetweenShots = 20;// x*10 millisekúndur, 100 er þá == 1 se
 let playerIndex = -1;
 let foundPlayer = false;
 
-// constantar fyrir kúlur
-const maxBullets = 10;
-const bulletSpeed = 7;
-const bulletMaxAge = 150;
-const bulletRadius = 2;
-
-// object sem geymir upplýsingar um það hvaða takka er verið að ýta á
+// geymir upplýsingar um það hvaða takkar á lyklaborðinu eru niðri/uppi
+// true == niðri
+// false == uppi
 let keys = {
     KEY_LEFT: false,
     KEY_RIGHT: false,
@@ -71,35 +93,39 @@ let keys = {
     KEY_G: false
 };
 
+// varðveisla á bakgrunnsmynd
 let generatedBackground = false;
 let storedBackground;
 
-//default stillingar á canvas teikningunum
-context.strokeStyle = "white";
-context.fillStyle = "black";
-context.lineWidth = 1;
+// ræður því hvort "klassísku" formin á leikmanni og loftsteinum séu notuð
+const doClassicShapes = true;
 
-//atburðahlustarar
-document.addEventListener("keydown",keydown);
-document.addEventListener("keyup",keyup);
-addEventListener("load",init_stuff);
-canvas.addEventListener("mouseup",mouse_up);
-canvas.addEventListener("mousemove",mouse_move);
-
-// virkja timer til að geta tímasett hluti
-let timer = setInterval(increment_timer,10);
-
-//tmp fikt
-const doClassicShapes = false;
+// breytur til að takmarka hraðann á leiknum til að
+// hann fari ekki uppúr öllu valdi á hraðvirkari tölvum
+const FPS = 60;
+let fpsInterval;
+let lastFrameTime;
+let currentFrameTime;
+let currentFrameDuration;
 
 /******************************************************************************/
+/******************************************************************************/
 
+// heldur utan um það hvort atburðahlustararnir fyrir valmyndina sé virkir
+let menuListenersActive = false;
+
+// skilgreiningar á valmöguleikum í aðalvalmynd
 let mainMenuItems = ["NEW GAME","HIGH SCORES"];
 let mainMenuMouseOver = [];
 
 /******************************************************************************/
+/******************************************************************************/
 
+// hvaða "bylgja" af asteroid er í gangi
+// (hækkar strax um 1 þannig að hún telur í raun frá 1)
 let waveNumber = 0;
+
+// breyta sem segir til um það hvort leikurinn sé byrjaður
 let gameStarted = false;
 
 // fylki til að geyma hlutina sem eru til staðar í leiknum
@@ -110,6 +136,7 @@ let numBullets = 0;
 let numSaucers = 0;
 let numAsteroids = 0;
 
+// hljóð
 let audioShoot = new Audio();
 let audioThrust = new Audio();
 let audioExplosionSmall = new Audio();
@@ -117,11 +144,36 @@ let audioExplosionMedium = new Audio();
 let audioExplosionLarge = new Audio();
 
 /******************************************************************************/
+/******************************************************************************/
+
+function activate_menu_listeners()
+{
+    menuListenersActive = true;
+    canvas.addEventListener("mouseup",mouse_up);
+    canvas.addEventListener("mousemove",mouse_move);
+}
+
+function deactivate_menu_listeners()
+{
+    menuListenersActive = false;
+    canvas.removeEventListener("mouseup",mouse_up);
+    canvas.removeEventListener("mousemove",mouse_move);
+}
 
 // init_stuff()
 // stilla það sem þarf að stilla í upphafi
 function init_stuff()
 {
+    //default stillingar á canvas teikningunum
+    context.strokeStyle = "white";
+    context.fillStyle = "black";
+    context.lineWidth = 1;
+
+    // virkja atburðahlustara fyrir lyklaborð
+    document.addEventListener("keydown",keydown);
+    document.addEventListener("keyup",keyup);
+
+    // opna hljóðskrárnar
     audioShoot.src = "sounds/shoot.wav";
     audioThrust.src = "sounds/thrust.wav";
     audioThrust.loop = true;
@@ -129,55 +181,100 @@ function init_stuff()
     audioExplosionMedium.src = "sounds/explosion_medium.wav";
     audioExplosionLarge.src = "sounds/explosion_large.wav";
 
+    // núllstilla "hover" fylkið fyrir aðalvalmyndina
     for(let i = 0; i < mainMenuItems.length;i++)
     {
         mainMenuMouseOver.push(false);
     }
+    // virkja atburðahlustara fyrir valmyndina
+    activate_menu_listeners();
 
+    // stofna leikmanninn
     gameObjects.push(new Player(playerStartX,playerStartY));
 
+    // stilla fps "klukkuna"
+    fpsInterval = 1000 / FPS;
+    lastFrameTime = window.performance.now();
+    currentFrameTime = lastFrameTime;
+
     //fyrsta kallið á aðallykkjufallið, það kallar svo sjálft aftur á sig
-    window.requestAnimationFrame(main_loop);
+    main_loop();
 }
 
-// update()
+// main_loop()
 // fall sem hýsir aðallykkju leiksins
 function main_loop()
 {
-    if(gameStarted == true)
+    if(gameStarted == true && gameObjects[player()].m_playerLives == -1 &&
+       gameObjects[player()].is_alive() == false)
     {
-        spawn_asteroids();
-
-        // input höndlun fyrst
-        handle_keys();
-    
-        // síðan hreyfingar og snúningar
-        move_polygons(gameObjects);
-        rotate_polygons(gameObjects);
-    
-        //skoða árekstra
-        check_collisions(gameObjects,gameObjects);
-    
-        // Hreinsa til eftir árekstra
-        cleanup_polygons(gameObjects);
-    
-        //og að lokum teikna allt sem þarf
-        draw_background();
-        draw_polygons(gameObjects);
-        draw_GUI();
+        activate_menu_listeners();
     }
-    else
+    else if(gameStarted == true && menuListenersActive == true)
     {
-        draw_background();
+        deactivate_menu_listeners();
+    }
 
-        draw_main_menu();
+    currentFrameTime = window.performance.now();
+    currentFrameDuration = currentFrameTime - lastFrameTime;
+
+    if(currentFrameDuration >= fpsInterval)
+    {
+        if(gameStarted == true)
+        {
+            run_game();
+    
+            if(gameObjects[player()].is_alive() == false &&
+               gameObjects[player()].m_playerLives == -1)
+            {
+                draw_main_menu();
+            }
+        }
+        else
+        {
+            draw_background();
+    
+            draw_main_menu();
+        }
     }
 
     // kalla svo aftur á update() til að framkvæma næstu lykkju
     window.requestAnimationFrame(main_loop);
 }
 
-function find_player()
+// run_game()
+// fall sem keyrir "gameplay" hlutann af leiknum
+function run_game()
+{
+    // athuga hvort það þurfi að búa til asteroid
+    spawn_asteroids();
+
+    // input höndlun fyrst
+    handle_keys();
+
+    // síðan hreyfingar og snúningar
+    move_polygons(gameObjects);
+    rotate_polygons(gameObjects);
+
+    //skoða árekstra
+    check_collisions(gameObjects,gameObjects);
+
+    // Hreinsa til eftir árekstra
+    cleanup_polygons(gameObjects);
+
+    //og að lokum teikna allt sem þarf
+    draw_background();
+    draw_polygons(gameObjects);
+    draw_GUI();
+}
+
+// find_player()
+// fall sem skilar út indexi í gameObjects fylkinu sem hýsir leikmanninn
+//
+// leitar bara einu sinni og geymir fundna indexið til að spara keyrslu
+// það ætti aldrei að koma önnur niðurstaða en 0 hvort sem er fyrst að
+// Player objectið er stofnað löngu áður en nokkuð annað object
+function player()
 {
     if(foundPlayer == true)
     {
@@ -200,11 +297,41 @@ function find_player()
     }
 }
 
+// restart_game()
+// núllstillir leikinn og byrjar upp á nýtt
+function restart_game()
+{
+    // tæma allt úr gameObjects fyrir utan leikmanninn
+    gameObjects = [...[gameObjects[player()]]];
+    numAsteroids = 0;
+    numBullets = 0;
+    numSaucers = 0;
+
+    // núllstilla leikmanninn og vekja hann frá dauðum
+    gameObjects[player()].reset();
+
+    // byrja aftur á fyrstu "bylgju"
+    waveNumber = 0;
+
+    // slökkva á atburðahlusturunum fyrir valmyndina
+    if(menuListenersActive == true)
+    {
+        deactivate_menu_listeners();
+    }
+
+    // passa að leikurinn viti af því að hann sé byrjaður
+    gameStarted = true;
+}
+
 // draw_main_menu()
 // teiknar aðalvalmyndina
 function draw_main_menu()
 {
     let logoText = "ASTEROIDS";
+    if(gameStarted == true)
+    {
+        logoText = "GAME OVER";
+    }
     let logoX = context.canvas.width/2-(9*3*grid/2);
     let logoY = (context.canvas.height/2+(1*grid))/2;
     draw_text(logoText,logoX,logoY);
@@ -238,7 +365,7 @@ function main_menu_select(option)
     switch(option)
     {
         case 0://NEW GAME
-            gameStarted = true;
+            restart_game();
             break;
         case 1://HIGH SCORES
             break;
@@ -252,26 +379,23 @@ function main_menu_select(option)
 // hvort músin sé yfir einhverjum valmöguleika þar
 function mouse_move(event)
 {
-    if(gameStarted == false)
+    let mouseX = event.pageX - this.offsetLeft;
+    let mouseY = event.pageY - this.offsetTop;
+
+    for(let i = 0; i < mainMenuItems.length; i++)
     {
-        let mouseX = event.pageX - this.offsetLeft;
-        let mouseY = event.pageY - this.offsetTop;
+        mainMenuMouseOver[i] = false;
 
-        for(let i = 0; i < mainMenuItems.length; i++)
-        {
-            mainMenuMouseOver[i] = false;
-
-            let targetX = context.canvas.width/2-((mainMenuItems[i].length)*3*grid/2);
-            let targetW = ((mainMenuItems[i].length)*3*grid);
-            let targetY = context.canvas.height/2+(i*4*grid)-(2*grid);
-            let targetH = 3*grid;
+        let targetX = canvas.width/2-((mainMenuItems[i].length)*fontWidth/2);
+        let targetW = ((mainMenuItems[i].length)*fontWidth);
+        let targetY = canvas.height/2+(i*fontHeight)-(2*grid);
+        let targetH = 3*grid;
     
-            let hitTarget = collision_point_to_rectangle(mouseX,mouseY,targetX,targetY,targetW,targetH);
+        let hitTarget = collision_point_to_rectangle(mouseX,mouseY,targetX,targetY,targetW,targetH);
 
-            if(hitTarget == true)
-            {
-                mainMenuMouseOver[i] = true;
-            }
+        if(hitTarget == true)
+        {
+            mainMenuMouseOver[i] = true;
         }
     }
 }
@@ -284,24 +408,21 @@ function mouse_move(event)
 // og virkjar viðkomandi valmöguleika ef svo er
 function mouse_up(event)
 {
-    if(gameStarted == false)
-    {
-        let mouseX = event.pageX - this.offsetLeft;
-        let mouseY = event.pageY - this.offsetTop;
+    let mouseX = event.pageX - this.offsetLeft;
+    let mouseY = event.pageY - this.offsetTop;
 
-        for(let i = 0; i < mainMenuItems.length; i++)
+    for(let i = 0; i < mainMenuItems.length; i++)
+    {
+        let targetX = canvas.width/2-((mainMenuItems[i].length)*fontWidth/2);
+        let targetW = ((mainMenuItems[i].length)*fontWidth);
+        let targetY = canvas.height/2+(i*fontHeight)-(2*grid);
+        let targetH = 3*grid;
+    
+        let hitTarget = collision_point_to_rectangle(mouseX,mouseY,targetX,targetY,targetW,targetH);
+    
+        if(hitTarget == true)
         {
-            let targetX = context.canvas.width/2-((mainMenuItems[i].length)*3*grid/2);
-            let targetW = ((mainMenuItems[i].length)*3*grid);
-            let targetY = context.canvas.height/2+(i*4*grid)-(2*grid);
-            let targetH = 3*grid;
-    
-            let hitTarget = collision_point_to_rectangle(mouseX,mouseY,targetX,targetY,targetW,targetH);
-    
-            if(hitTarget == true)
-            {
-                main_menu_select(i);
-            }
+            main_menu_select(i);
         }
     }
 }
@@ -343,8 +464,8 @@ function spawn_asteroids()
 // check_collisions()
 // fer í gegnum 2 fylki og keyrir árekstraprófun á þeim
 //
-// object -> fyrra fylkið af Polygon klösum, check_collision() er keyrt úr þessu fylki
-// target -> seinna fylkið af Polygon klösum, gefið sem færibreyta í check_collision() kallinu
+// object -> fyrra fylkið af Polygon klösum, keyrir check_collision()
+// target -> seinna fylkið af Polygon klösum, færibreyta í check_collision()
 function check_collisions(object,target)
 {
     if(object.length > 0)
@@ -413,8 +534,9 @@ function move_polygons(array)
 }
 
 // rotate_polygons()
-// fall sem fer í gegnum fylki af Polygon klösum og keyrir rotate() fallið þeirra
-// sleppir því ef um leikmanninn er að ræða þar sem hann sér sjálfur um að snúa sér
+// fall sem fer í gegnum fylki af Polygon klösum og keyrir rotate() fallið
+// þeirra. Sleppir því ef um leikmanninn er að ræða þar sem hann sér sjálfur um
+// að snúa sér
 //
 // array -> fylki af Polygon klösum
 function rotate_polygons(array)
@@ -423,7 +545,7 @@ function rotate_polygons(array)
     {
         for(let i = 0; i < array.length;i++)
         {
-            if((array[i] instanceof Player) == false) // leikmaðurinn sér sjálfur um að snúa sér
+            if((array[i] instanceof Player) == false)
             {
                 array[i].rotate();
             }
@@ -447,7 +569,7 @@ function draw_polygons(array)
 }
 
 // random_coordinates()
-// býr til random pixel position skjáhnit
+// býr til random pixel skjáhnit
 //
 //   safe -> ákvarðar hvort hnitin verði í öruggri fjarlægð frá leikmanni
 function random_coordinates(safe = false)
@@ -455,9 +577,12 @@ function random_coordinates(safe = false)
     let X = Math.floor(Math.random()*(context.canvas.width-1));
     let Y = Math.floor(Math.random()*(context.canvas.height-1));
 
-    let playerX = gameObjects[find_player()].m_posX;
-    let playerY = gameObjects[find_player()].m_posY;
-    let distanceToPlayer = Math.sqrt((Math.abs(X-playerX)*Math.abs(X-playerX))+(Math.abs(Y-playerY)*Math.abs(Y-playerY)));
+    let playerX = gameObjects[player()].m_posX;
+    let playerY = gameObjects[player()].m_posY;
+
+    let A = Math.abs(X-playerX);
+    let B = Math.abs(Y-playerY);
+    let distanceToPlayer = Math.sqrt((A*A)+(B*B));
 
     if(safe == true)
     {
@@ -465,7 +590,10 @@ function random_coordinates(safe = false)
         {
             X = Math.floor(Math.random()*(context.canvas.width-1));
             Y = Math.floor(Math.random()*(context.canvas.height-1));
-            distanceToPlayer = Math.sqrt((Math.abs(X-playerX)*Math.abs(X-playerX))+(Math.abs(Y-playerY)*Math.abs(Y-playerY)));
+
+            A = Math.abs(X-playerX);
+            B = Math.abs(Y-playerY);
+            distanceToPlayer = Math.sqrt((A*A)+(B*B));
         }
     }
 
@@ -484,17 +612,17 @@ function draw_GUI()
 // teiknar stigin sem leikmaður er kominn með
 function draw_score()
 {
-    draw_text(gameObjects[find_player()].m_playerScore.toString(),5,35);
+    draw_text(gameObjects[player()].m_playerScore.toString(),5,35);
 }
 
 // draw_lives()
 // teiknar lífin sem leikmaður á eftir
 function draw_lives()
 {
-    if(gameObjects[find_player()].m_playerLives > 0)
+    if(gameObjects[player()].m_playerLives > 0)
     {
         let tmpShip = new Ship(0,60);
-        for(let i = 0; i < gameObjects[find_player()].m_playerLives; i++)
+        for(let i = 0; i < gameObjects[player()].m_playerLives; i++)
         {
             tmpShip.m_posX = (i*2.5*grid)+20;
             tmpShip.draw();
@@ -511,30 +639,31 @@ function handle_keys()
 
     if(keys[KEY_LEFT] == true)
     {
-        gameObjects[find_player()].rotate(-gameObjects[find_player()].m_rotationSpeed);
+        gameObjects[player()].rotate(-gameObjects[player()].m_rotationSpeed);
     }
 
     if(keys[KEY_RIGHT] == true)
     {
-        gameObjects[find_player()].rotate(gameObjects[find_player()].m_rotationSpeed);
+        gameObjects[player()].rotate(gameObjects[player()].m_rotationSpeed);
     }
 
     if(keys[KEY_UP] == true)
     {
-        gameObjects[find_player()].thrust();
+        gameObjects[player()].thrust();
         //audioThrust.play();
     }
     else
     {
-        gameObjects[find_player()].thrust(0);
+        gameObjects[player()].thrust(0);
         //audioThrust.pause();
     }
 
-    if(keys[KEY_SPACE] == true && ((runtimeMilliseconds-playerLastShotTime) >= playerMinTimeBetweenShots))
+    if(keys[KEY_SPACE] == true &&
+       (runtimeMilliseconds-playerLastShotTime) >= playerMinTimeBetweenShots)
     {
         playerLastShotTime = runtimeMilliseconds;
 
-        gameObjects[find_player()].shoot();
+        gameObjects[player()].shoot();
     }
 
     // smá bremsa á lyklaborðsinput sem eru höndluð neðar í fallinu
@@ -560,13 +689,13 @@ function handle_keys()
     if(keys[KEY_G] == true) // hyperspace
     {
         tmpCoords = random_coordinates();
-        gameObjects[find_player()].m_posX = tmpCoords[0];
-        gameObjects[find_player()].m_posY = tmpCoords[1];
+        gameObjects[player()].m_posX = tmpCoords[0];
+        gameObjects[player()].m_posY = tmpCoords[1];
 
         let randomNumber = Math.floor(Math.random()*62);
         if(randomNumber >= (numAsteroids+44))
         {
-            gameObjects[find_player()].die();
+            gameObjects[player()].die();
         }
     }
 }
@@ -649,7 +778,7 @@ function keyup(event)
 //
 // skilar frá sér fylki af fylkjum með X,Y hnitum
 // t.d. [[x,y],[x2,y2],[x3,y3]]
-// (ekki pixel position hnitum, þau eru seinna sköluð upp með grid breytunni)
+// (ekki pixel hnitum, þau eru seinna sköluð upp með grid breytunni)
 function random_shape(nodes,minR,maxR)
 {
     // reikna hornið milli punkta út frá fjölda
@@ -661,7 +790,7 @@ function random_shape(nodes,minR,maxR)
     for(let i = 0;i < nodes;i++)
     {
         // lykkja sem býr til ný hnit
-        // keyrir aftur og aftur þangað til það verða til hnit sem eru ekki í fylkinu
+        // keyrir þangað til það verða til hnit sem eru ekki í fylkinu
         do
         {
             let targetAngle = angleStep * i;
@@ -745,9 +874,10 @@ function increment_timer()
 // grunnclass fyrir form
 //
 // meðlimabreytur:
-//   m_scale -> skali á forminu, hægt að nota til að stækka eða minnka formið án þess að þurfa að fikta í hnitunum
-//   m_posX -> pixel position staðsetning á X núllpunkti formsins
-//   m_posY -> pixel position staðsetning á Y núllpunkti formsins
+//   m_scale -> skali á forminu, hægt að nota til að stækka eða minnka formið án
+//              þess að þurfa að fikta í hnitunum
+//   m_posX -> pixel staðsetning á X núllpunkti formsins
+//   m_posY -> pixel staðsetning á Y núllpunkti formsins
 //   m_thrust -> hröðun formins
 //   m_velX -> hraði formsins á X-ás
 //   m_velY -> hraði formsins á Y-ás
@@ -761,7 +891,8 @@ function increment_timer()
 //                        oftast sama og m_points en stundum slice() af því
 //   m_destroyed -> er formið ónýtt eftir árekstur?
 //   m_pointValue -> stigafjöldi sem leikmaður fær við að eyða þessu formi
-//   m_collided -> merkt þegar formið hefur þegar lent í árekstri, svo að áreksturinn sé ekki merktur tvisvar
+//   m_collided -> merkt þegar formið hefur þegar lent í árekstri, svo að
+//                 áreksturinn sé ekki merktur tvisvar
 //
 class Polygon
 {
@@ -793,8 +924,7 @@ class Polygon
         this.m_pointsCollision = [];
     }
 
-    // umreiknar m_points hnit yfir í pixel position hnit
-    // snýr, skalar upp um grid, skalar upp/niður um m_scale og færir svo til á réttan stað
+    // umreiknar m_points hnit yfir í pixel hnit
     screen_coordinates(points)
     {
         // afrit tekið vegna þess að við munum breyta hnitunum
@@ -804,12 +934,23 @@ class Polygon
         {
             // snúa hnitunum um m_angle
             tmpPoints[i] = rotate_coordinates(tmpPoints[i],this.m_angle);
+
             // "ytri" skölun á forminu (grid)
-            tmpPoints[i] = [tmpPoints[i][0]*grid,tmpPoints[i][1]*grid];
+            tmpPoints[i] = [
+                tmpPoints[i][0]*grid,
+                tmpPoints[i][1]*grid];
+
             // "innri" skölun á forminu (m_scale)
-            tmpPoints[i] = [Math.round(tmpPoints[i][0]*this.m_scale),Math.round(tmpPoints[i][1]*this.m_scale)];
-            // translation yfir á réttan stað á skjánum (pixel position)
-            tmpPoints[i] = [tmpPoints[i][0]+this.m_posX,tmpPoints[i][1]+this.m_posY];
+            tmpPoints[i] = [
+                Math.round(tmpPoints[i][0]*this.m_scale),
+                Math.round(tmpPoints[i][1]*this.m_scale)
+            ];
+
+            // translation yfir á réttan stað á skjánum (pixel)
+            tmpPoints[i] = [
+                tmpPoints[i][0]+this.m_posX,
+                tmpPoints[i][1]+this.m_posY
+            ];
         }
 
         return tmpPoints;
@@ -945,7 +1086,7 @@ class Polygon
     }
 
     // reiknar út og skilar stefnuhorni núverandi hraðavigurs
-    // útkoman er umreiknuð til að passa við m_angle (sem er snúinn um 90 gráður)
+    // útkoman passar við m_angle (sem er snúinn um 90 gráður)
     get_velocity_angle()
     {
         // finna núverandi stefnu á hraðavigri
@@ -974,7 +1115,7 @@ class Polygon
         // engir árekstrar fyrir ósýnilegan og látinn leikmann
         if(this instanceof Player || objectToCheck instanceof Player)
         {
-            if(gameObjects[find_player()].is_alive() == false)
+            if(gameObjects[player()].is_alive() == false)
             {
                 return false;
             }
@@ -998,7 +1139,7 @@ class Polygon
             return false;
         }
 
-        // ef við höfum þegar lent í árekstri þá viljum við ekki skoða hann tvisvar
+        // sleppum því að skoða árekstra tvisvar
         if(this.m_collided == true || objectToCheck.m_collided == true)
         {
             return false;
@@ -1057,7 +1198,7 @@ class Polygon
 //
 // meðlimabreytur sem bætast við:
 //   m_birth -> fæðingartími kúlunnar, notað til að reikna hvort hún sé útrunnin
-//   m_playerBullet -> segir til um það hvort kúlunni var skotið af leikmanni eða ekki
+//   m_playerBullet -> ákvarðar hvort kúlunni var skotið af leikmanni eða ekki
 //
 class Bullet extends Polygon
 {
@@ -1095,7 +1236,7 @@ class Bullet extends Polygon
     }
 
     // sér teiknifall fyrir þennan klasa
-    // ólíkt hinum klösunum, þá notar þessi ekki m_points heldur teiknar hring á m_posX,m_posY
+    // þessi klassi notar ekki m_points heldur teiknar hring á m_posX,m_posY
     draw()
     {
         context.save();
@@ -1176,10 +1317,7 @@ class Ship extends Polygon
         // og svo eldinn ef það á við
         if(this.m_drawFlame)
         {
-            //context.save();
-            //context.fillStyle = "yellow";
             super.draw(this.m_points.slice(i));
-            //context.restore();
         }
     }
 }
@@ -1194,7 +1332,7 @@ class Ship extends Polygon
 // meðlimabreytur sem bætast við:
 //   m_playerLives -> aukalíf sem leikmaður á eftir
 //   m_playerScore -> stig sem leikmaður er kominn með
-//   m_playerAlive -> boolean fyrir það hvort leikmaður sé á lífi - hægt að sleppa og nota m_playerLives
+//   m_playerAlive -> boolean fyrir það hvort leikmaður sé á lífi
 //
 // meðlimaföll sem bætast við:
 //      thrust() -> virkjar hröðun
@@ -1222,7 +1360,14 @@ class Player extends Ship
         this.m_nextExtraLifeScore = playerExtraLifeScore;
     }
 
-    //meðlimafall sem stillir hröðun formsins
+    reset()
+    {
+        this.m_playerScore = 0;
+        this.m_playerLives = playerStartLives;
+        this.resurrect();
+    }
+
+    //stillir hröðun formsins
     //notað til að stoppa líka með .thrust(0)
     thrust(power = this.m_movementSpeed)
     {
@@ -1345,7 +1490,7 @@ class Player extends Ship
         gameObjects.push(new Bullet((this.m_posX+b2), (this.m_posY-a2), tmpVelX, tmpVelY, true));
     }
 
-    // teiknar, vekur leikmann upp frá dauðum eða gerir ekkert eftir því hvað á við
+    // teiknar, vekur leikmann upp frá dauðum eða gerir ekkert
     draw()
     {
         if(this.is_alive())
@@ -1511,7 +1656,7 @@ class Saucer extends Polygon
         {
             if(collidedObject.m_playerBullet == true)
             {
-                gameObjects[find_player()].give_score(this.m_pointValue);
+                gameObjects[player()].give_score(this.m_pointValue);
             }
         }
 
@@ -1585,8 +1730,8 @@ class Asteroid extends Polygon
         // passa að það verði einhver hreyfing
         do
         {
-            this.m_velX = Math.floor(Math.random()*3);
-            this.m_velY = Math.floor(Math.random()*3);
+            this.m_velX = Math.floor(Math.random()*2);
+            this.m_velY = Math.floor(Math.random()*2);
         }
         while(this.m_velX == 0 && this.m_velY == 0);
 
@@ -1654,7 +1799,7 @@ class Asteroid extends Polygon
             if(collidedObject.m_playerBullet == true)
             {
                 // vel gert, gefum honum stig
-                gameObjects[find_player()].give_score(this.m_pointValue);
+                gameObjects[player()].give_score(this.m_pointValue);
             }
         }
 
@@ -1875,7 +2020,7 @@ let font = {
 // fall sem teiknar textastreng
 //
 // text -> textastrengurinn
-// X, Y -> pixel position hnit á skjánum
+// X, Y -> pixel hnit á skjánum
 // color -> litur
 function draw_text(text,X,Y,color = "white")
 {
@@ -1885,18 +2030,20 @@ function draw_text(text,X,Y,color = "white")
     for(let i = 0; i < text.length;i++)
     {
         let charCode = text.charCodeAt(i);
-        if((charCode >= 48 && charCode <= 58) || (charCode >= 65 && charCode <= 90) || charCode == 95)
+        if((charCode >= 48 && charCode <= 58) ||
+           (charCode >= 65 && charCode <= 90) || charCode == 95)
         {
-            draw_letter(text.charAt(i),X+(i*3*grid),Y,color);
+            draw_letter(text.charAt(i),X+(i*fontWidth),Y,color);
         }
     }
 }
 
 // draw_letter()
-// fall til að teikna stakan staf. Stafir sem eru ekki skilgreindir í font objectinu teiknast sem bil
+// fall til að teikna stakan staf. Stafir sem eru ekki skilgreindir í font
+// objectinu teiknast sem bil
 // 
 // letter -> stafur til að teikna
-//  X,  Y -> pixel position hnit á skjánum
+//  X,  Y -> pixel hnit á skjánum
 // color -> litur
 function draw_letter(letter,X,Y,color = "white")
 {
@@ -1928,15 +2075,15 @@ function draw_letter(letter,X,Y,color = "white")
         }
     }
 
-    // hliðra hnitunum á canvasnum til baka svo að allt nema stafirnir komi ekki blurry
+    // hliðra hnitunum á canvasnum til baka svo að allt hitt verði ekki blurry
     context.translate(-0.5,-0.5);
 }
 
 // draw_circle()
 // fall til að teikna stakan radius 2 hring
 //
-//     X,     Y -> staðsetning hringsins í 2x3 grid, samskonar og font objectið notar
-// drawX, drawY -> pixel position hnit á skjánum
+//     X,     Y -> staðsetning hringsins í 2x3 grid, sama hnitakerfi og fontur
+// drawX, drawY -> pixel hnit á skjánum
 // color -> litur
 function draw_circle(X,Y,drawX,drawY,color = "white")
 {
@@ -1958,7 +2105,7 @@ function draw_circle(X,Y,drawX,drawY,color = "white")
 //
 //    X1,    Y1 -> upphafspunktur, 2x3 grid
 //    X2,    Y2 -> endapunktur, 2x3 grid
-// drawX, drawY -> pixel position hnit á skjánum
+// drawX, drawY -> pixel hnit á skjánum
 // color -> litur
 function draw_line(X1,Y1,X2,Y2,drawX,drawY,color = "white")
 {
@@ -2097,12 +2244,12 @@ const classicAsteroidShapes =
 // collision_point_to_point()
 // athugar árekstur á milli tveggja punkta
 //
-// p1x, p1y -> X og Y hnit á fyrri punktinum (pixel position hnit)
-// p2x, p2y -> X og Y hnit á seinni punktinum (pixel position hnit)
+// p1x, p1y -> X og Y hnit á fyrri punktinum (pixel hnit)
+// p2x, p2y -> X og Y hnit á seinni punktinum (pixel hnit)
 // sensitivity -> næmnin á árekstrinum
 //
-// Ef næmnin er notuð, þá smíðar fallið hringi á punktunum með næmnina sem radíus
-// og athugar svo hvort þeir snertast.
+// Ef næmnin er notuð, þá smíðar fallið hringi á punktunum með næmnina sem
+// radíus og athugar svo hvort þeir snertast.
 // Það þýðir að næmnin hækkar með hækkandi gildi
 function collision_point_to_point(p1x, p1y, p2x, p2y, sensitivity = 0)
 {
@@ -2126,13 +2273,14 @@ function collision_point_to_point(p1x, p1y, p2x, p2y, sensitivity = 0)
 // collision_point_to_circle()
 // athugar árekstur á milli punkts og hrings
 //
-// p1x, p1y -> X og Y hnit á punktinum (pixel position hnit)
-// cx, cy -> X og Y hnit á miðjupunkti hringsins (pixel position hnit)
+// p1x, p1y -> X og Y hnit á punktinum (pixel hnit)
+// cx, cy -> X og Y hnit á miðjupunkti hringsins (pixel hnit)
 // cr -> radíus hringsins (pixel stærð)
 // sensitivity -> næmnin á árekstrinum
 //
 // Ef næmnin er notuð, þá smíðar fallið hring á punktinum með næmnina sem radíus
-// og athugar svo hvort sá hringur rekist á hringinn sem er verið að bera saman við
+// og athugar svo hvort sá hringur rekist á hringinn sem er verið að bera saman
+// við
 // Það þýðir að næmnin hækkar með hækkandi gildi
 function collision_point_to_circle(px, py, cx, cy, cr, sensitivity = 0)
 {
@@ -2160,15 +2308,15 @@ function collision_point_to_circle(px, py, cx, cy, cr, sensitivity = 0)
 // collision_circle_to_circle()
 // athugar árekstur á milli tveggja hringja
 //
-// c1x, c1y -> X og Y hnit á miðjupunkti fyrri hringsins (pixel position hnit)
+// c1x, c1y -> X og Y hnit á miðjupunkti fyrri hringsins (pixel hnit)
 // c1r -> radíus fyrri hringsins (pixel stærð)
-// c1x, c1y -> X og Y hnit á miðjupunkti seinni hringsins (pixel position hnit)
+// c1x, c1y -> X og Y hnit á miðjupunkti seinni hringsins (pixel hnit)
 // c1r -> radíus seinni hringsins (pixel stærð)
 // sensitivity -> næmnin á árekstrinum
 //
 // Ef næmnin er notuð, þá bætir fallið næmninni á radíusana á hringjunum
 // Það þýðir að næmnin hækkar með hækkandi gildi og lækkar með lækkandi gildi
-function collision_circle_to_circle(c1x, c1y, c1r, c2x, c2y, c2r, sensitivity = 0)
+function collision_circle_to_circle(c1x,c1y,c1r,c2x,c2y,c2r,sensitivity = 0)
 {
     // pýþagóras til að finna lengd línunnar á milli miðjupunkta hringjanna
     let A = c1x - c2x;
@@ -2188,13 +2336,14 @@ function collision_circle_to_circle(c1x, c1y, c1r, c2x, c2y, c2r, sensitivity = 
 // collision_point_to_rectangle()
 // athugar árekstur á milli punkts og ferhyrnings
 //
-// px, py -> X og Y hnit á punktinum (pixel position hnit)
-// rx, ry -> X og Y hnit á efra vinstra horni ferhyrningsins (pixel position hnit)
+// px, py -> X og Y hnit á punktinum (pixel hnit)
+// rx, ry -> X og Y hnit á efra vinstra horni ferhyrningsins (pixel hnit)
 // rw, rh -> breidd og hæð ferhyrningsins (pixel stærð)
 // sensitivity -> næmnin á árekstrinum
 //
 // Ef næmnin er notuð, þá smíðar fallið hring á punktinum með næmnina sem radíus
-// og athugar svo hvort sá hringur rekist á ferhyrninginn sem er verið að bera saman við
+// og athugar svo hvort sá hringur rekist á ferhyrninginn sem er verið að bera
+// saman við
 // Það þýðir að næmnin hækkar með hækkandi gildi
 function collision_point_to_rectangle(px, py, rx, ry, rw, rh, sensitivity = 0)
 {
@@ -2228,15 +2377,16 @@ function collision_point_to_rectangle(px, py, rx, ry, rw, rh, sensitivity = 0)
 // collision_rectangle_to_rectangle()
 // athugar árekstra á milli tveggja ferhyrninga
 //
-// r1x, r1y -> X og Y hnit á efra vinstra horni fyrri ferhyrningsins (pixel position hnit)
+// r1x, r1y -> X og Y hnit á efra vinstra horni fyrri ferhyrningsins (pixel hnit)
 // r1w, r1h -> breidd og hæð fyrri ferhyrningsins (pixel stærð)
-// r2x, r2y -> X og Y hnit á efra vinstra horni seinni ferhyrningsins (pixel position hnit)
+// r2x, r2y -> X og Y hnit á efra vinstra horni seinni ferhyrningsins (pixel hnit)
 // r2w, r2h -> breidd og hæð seinni ferhyrningsins (pixel stærð)
 // sensitivity -> næmnin á árekstrinum
 //
-// Ef næmnin er notuð þá bætir fallið helmingnum af næmninni á allar hliðar á hvorum ferhyrningi
+// Ef næmnin er notuð þá bætir fallið helmingnum af næmninni á allar hliðar á
+// hvorum ferhyrningi
 // Það þýðir að næmnin hækkar og lækkar með hækkandi og lækkandi gildi
-function collision_rectangle_to_rectangle(r1x, r1y, r1w, r1h, r2x, r2y, r2w, r2h, sensitivity = 0)
+function collision_rectangle_to_rectangle(r1x,r1y,r1w,r1h,r2x,r2y,r2w,r2h,sensitivity = 0)
 {
     // hliðra r1 fyrst um hálfa næmni
     r1x -= (sensitivity/2);
@@ -2282,15 +2432,16 @@ function collision_rectangle_to_rectangle(r1x, r1y, r1w, r1h, r2x, r2y, r2w, r2h
 // collision_circle_to_rectangle()
 // athugar árekstra á milli hrings og ferhyrnings
 //
-// cx, cy -> X og Y hnit á miðjupunkti hringsins (pixel position hnit)
+// cx, cy -> X og Y hnit á miðjupunkti hringsins (pixel hnit)
 // cr -> radíus hringsins (pixel stærð)
-// rx, ry -> X og Y hnit á efra vinstra horni ferhyrningsins (pixel position hnit)
+// rx, ry -> X og Y hnit á efra vinstra horni ferhyrningsins (pixel hnit)
 // rw, rh -> breidd og hæð ferhyrningsins (pixel stærð)
 // sensitivity -> næmnin á árekstrinum
 //
-// Ef næmnin er notuð, þá breytir hún radíus hringsins og hefur þannig áhrif á samanburðinn
+// Ef næmnin er notuð, þá breytir hún radíus hringsins og hefur þannig áhrif á
+// samanburðinn
 // Hærra gildi leiðir til hækkandi næmni og öfugt
-function collision_circle_to_rectangle(cx, cy, cr, rx, ry, rw, rh, sensitivity = 0)
+function collision_circle_to_rectangle(cx,cy,cr,rx,ry,rw,rh,sensitivity = 0)
 {
     // læsileikabreytur fyrir mörk ferhyrningsins
     let leftEdge = rx;
@@ -2302,31 +2453,34 @@ function collision_circle_to_rectangle(cx, cy, cr, rx, ry, rw, rh, sensitivity =
     let tmpX = cx;
     let tmpY = cy;
 
-    // ef hringurinn er hægra megin við ferhyrninginn, þá berum við saman við hægri brúnina á X ás
-    // ef hringurinn er vinstra megin við ferhyrninginn, þá berum við saman við vinstri brúnina á X ás
-    // TODO: finna út hvort <= og >= séu betri
+    // ef hringurinn er hægra megin við ferhyrninginn
+    // þá berum við saman við hægri brúnina á X ás
     if(tmpX > rightEdge)
     {
         tmpX = rightEdge;
     }
+    // en ef hringurinn er vinstra megin við ferhyrninginn
+    // þá berum við saman við vinstri brúnina á X ás
     else if(tmpX < leftEdge)
     {
         tmpX = leftEdge;
     }
 
-    // ef hringurinn er neðan við ferhyrninginn, þá berum við saman við neðri brúnina á Y ás
-    // ef hringurinn er ofan við ferhyrninginn, þá berum við saman við efri brúnina á Y ás
-    // TODO: finna út hvort <= og >= séu betri
+    // ef hringurinn er neðan við ferhyrninginn
+    // þá berum við saman við neðri brúnina á Y ás
     if(tmpY > bottomEdge)
     {
         tmpY = bottomEdge;
     }
+    // en ef hringurinn er ofan við ferhyrninginn
+    // þá berum við saman við efri brúnina á Y ás
     else if(tmpY < topEdge)
     {
         tmpY = topEdge;
     }
 
-    // pýþagóras til að reikna fjarlægðina á milli hringsins og brúnanna sem við völdum hér að ofan
+    // pýþagóras til að reikna fjarlægðina á milli hringsins
+    // og brúnanna sem við völdum hér að ofan
     let A = cx-tmpX;
     let B = cy-tmpY;
     let C = Math.sqrt((A*A)+(B*B));
@@ -2343,9 +2497,9 @@ function collision_circle_to_rectangle(cx, cy, cr, rx, ry, rw, rh, sensitivity =
 // collision_line_to_point()
 // athugar árekstur á milli línu og punkts
 //
-// l1x, l1y -> X og Y hnit á upphafspunkti línunnar (pixel position hnit)
-// l2x, l2y -> X og Y hnit á endapunkti línunnar (pixel position hnit)
-// px, py -> X og Y hnit á punktinum (pixel position hnit)
+// l1x, l1y -> X og Y hnit á upphafspunkti línunnar (pixel hnit)
+// l2x, l2y -> X og Y hnit á endapunkti línunnar (pixel hnit)
+// px, py -> X og Y hnit á punktinum (pixel hnit)
 // sensitivity -> næmni árekstursins, næmnin hækkar með lækkandi gildi
 //
 // Ef næmnin er 0 þá þarf punkturinn að lenda nákvæmlega á línunni sem
@@ -2368,7 +2522,7 @@ function collision_line_to_point(l1x, l1y, l2x, l2y, px, py, sensitivity = 0.1)
     let p2B = l2y-py;
     let p2C = Math.sqrt((p2A*p2A)+(p2B*p2B));
 
-    // ef samanlögð lengd á p1C og p2C er sú sama og lengd línunnar, þá er árekstur
+    // ef lengd á p1C + p2C er sú sama og lengd línunnar, þá er árekstur
     if(((p1C+p2C) >= lC-sensitivity) &&
        ((p1C+p2C) <= lC+sensitivity))
     {
@@ -2381,15 +2535,16 @@ function collision_line_to_point(l1x, l1y, l2x, l2y, px, py, sensitivity = 0.1)
 // collision_line_to_circle()
 // athugar árekstur á milli línu og hrings
 //
-// l1x, l1y -> X og Y hnit á upphafspunkti línunnar (pixel position hnit)
-// l2x, l2y -> X og Y hnit á endapunkti línunnar (pixel position hnit)
-// cx, cy -> X og Y hnit á miðjupunkti hringsins (pixel position hnit)
+// l1x, l1y -> X og Y hnit á upphafspunkti línunnar (pixel hnit)
+// l2x, l2y -> X og Y hnit á endapunkti línunnar (pixel hnit)
+// cx, cy -> X og Y hnit á miðjupunkti hringsins (pixel hnit)
 // cr -> radíus hringsins (pixel stærð)
 // sensitivity -> næmni árekstursins
 //
-// Ef næmnin er notuð, þá breytir hún radíus hringsins og hefur þannig áhrif á samanburðinn
+// Ef næmnin er notuð, þá breytir hún radíus hringsins og hefur þannig áhrif á
+// samanburðinn
 // Hærra gildi leiðir til hækkandi næmni og öfugt
-function collision_line_to_circle(l1x, l1y, l2x, l2y, cx, cy, cr, sensitivity = 0)
+function collision_line_to_circle(l1x,l1y,l2x,l2y,cx,cy,cr,sensitivity = 0)
 {
     // athuga hvort upphafs- eða endapunktur línunnar sé inni í hringnum
     let p1Inside = collision_point_to_circle(l1x,l1y,cx,cy,cr);
@@ -2421,8 +2576,8 @@ function collision_line_to_circle(l1x, l1y, l2x, l2y, cx, cy, cr, sensitivity = 
     // reikna innfeldið á einingarvigri línunnar og hinum vigrinum
     let dotProduct = (dx * dxC) + (dy * dyC);
 
-    // lengja einingarvigurinn um innfeldið og hliðra honum um upphafspunkt línunnar
-    // til að fá út punkt á línunni sem er næstur hringnum
+    // lengja einingarvigurinn um innfeldið og hliðra honum um upphafspunkt
+    // línunnar til að fá út punkt á línunni sem er næstur hringnum
     let tmpX = (dx * dotProduct) + l1x;
     let tmpY = (dy * dotProduct) + l1y;
 
@@ -2452,10 +2607,10 @@ function collision_line_to_circle(l1x, l1y, l2x, l2y, cx, cy, cr, sensitivity = 
 // collision_line_to_line()
 // athugar árekstra á milli tveggja lína
 //
-// l1x, l1y -> X og Y hnit á upphafspunkti fyrri línunnar (pixel position hnit)
-// l2x, l2y -> X og Y hnit á endapunkti fyrri línunnar (pixel position hnit)
-// l3x, l3y -> X og Y hnit á upphafspunkti seinni línunnar (pixel position hnit)
-// l4x, l4y -> X og Y hnit á endapunkti seinni línunnar (pixel position hnit)
+// l1x, l1y -> X og Y hnit á upphafspunkti fyrri línunnar (pixel hnit)
+// l2x, l2y -> X og Y hnit á endapunkti fyrri línunnar (pixel hnit)
+// l3x, l3y -> X og Y hnit á upphafspunkti seinni línunnar (pixel hnit)
+// l4x, l4y -> X og Y hnit á endapunkti seinni línunnar (pixel hnit)
 function collision_line_to_line(l1x,l1y,l2x,l2y,l3x,l3y,l4x,l4y)
 {
     // Sjá "Intersection Point of Two Lines (2 Dimensions)"
@@ -2470,7 +2625,8 @@ function collision_line_to_line(l1x,l1y,l2x,l2y,l3x,l3y,l4x,l4y)
     let line1_u = line1numerator / denominator;
     let line2_u = line2numerator / denominator;
 
-    // ef u fyrir línu 1 og línu 2 liggja báðir milli 0 og 1, þá skerast línurnar og það verður árekstur
+    // ef u fyrir línu 1 og línu 2 liggja báðir milli 0 og 1
+    // þá skerast línurnar og það verður árekstur
     if(line1_u >= 0 && line1_u <= 1 && line2_u >= 0 && line2_u <= 1)
     {
         return true;
@@ -2482,13 +2638,14 @@ function collision_line_to_line(l1x,l1y,l2x,l2y,l3x,l3y,l4x,l4y)
 // collision_line_to_rectangle()
 // athugar árekstra á milli línu og ferhyrnings
 //
-// l1x, l1y -> X og Y hnit á upphafspunkti línunnar (pixel position hnit)
-// l2x, l2y -> X og Y hnit á endapunkti línunnar (pixel position hnit)
-// rx, ry -> X og Y hnit á efra vinstra horni ferhyrningsins (pixel position hnit)
+// l1x, l1y -> X og Y hnit á upphafspunkti línunnar (pixel hnit)
+// l2x, l2y -> X og Y hnit á endapunkti línunnar (pixel hnit)
+// rx, ry -> X og Y hnit á efra vinstra horni ferhyrningsins (pixel hnit)
 // rw, rh -> breidd og hæð ferhyrningsins (pixel stærð)
 // sensitivity -> næmni árekstursins
 //
-// Ef næmnin er notuð þá bætir fallið helmingnum af næmninni á allar hliðar á hvorum ferhyrningi
+// Ef næmnin er notuð þá bætir fallið helmingnum af næmninni á allar hliðar á
+// hvorum ferhyrningi
 // Það þýðir að næmnin hækkar og lækkar með hækkandi og lækkandi gildi
 function collision_line_to_rectangle(l1x,l1y,l2x,l2y,rx,ry,rw,rh,sensitivity = 0)
 {
@@ -2532,7 +2689,8 @@ function collision_line_to_rectangle(l1x,l1y,l2x,l2y,rx,ry,rw,rh,sensitivity = 0
     let collisionBottom = collision_line_to_line(l1x,l1y,l2x,l2y,bottomx1,bottomy,bottomx2,bottomy);
 
     // ef hún gerir það, þá er árekstur
-    if( collisionLeft == true || collisionRight == true || collisionTop == true || collisionBottom == true)
+    if( collisionLeft == true || collisionRight == true ||
+        collisionTop == true || collisionBottom == true)
     {
         return true;
     }
@@ -2543,19 +2701,22 @@ function collision_line_to_rectangle(l1x,l1y,l2x,l2y,rx,ry,rw,rh,sensitivity = 0
 // collision_polygon_to_point()
 // athugar árekstur á milli polygons og punkts
 //
-// vertices -> fylki með X,Y hnitum allra punktanna á polygoninum (ATH: ekki m_points, heldur eftir umbreytingar)
-// px, py -> X og Y hnit á punktinum (pixel position hnit)
+// vertices -> fylki með X,Y hnitum allra punktanna á polygoninum
+//             ATH: ekki m_points, heldur eftir umbreytingarnar
+// px, py -> X og Y hnit á punktinum (pixel hnit)
 // sensitivity -> næmni árekstursins
-// testInside -> ef næmni er notuð, viljum við athuga hvort næmnishringurinni sé í heild sinni inni í polygoninum?
+// testInside -> ef næmni er notuð, viljum við athuga hvort næmnishringurinni sé
+//               í heild sinni inni í polygoninum?
 //
 // Ef næmnin er notuð, þá smíðar fallið hring á punktinum með næmnina sem radíus
-// og athugar svo hvort sá hringur rekist á polygoninn sem er verið að bera saman við
+// og athugar svo hvort sá hringur rekist á polygoninn sem er verið að bera
+// saman við
 // Það þýðir að næmnin hækkar með hækkandi gildi
 //
-// Þetta fall notar aðferðina að telja hversu oft polygoninn "snýst" í kringum punktinn
+// Þetta fall telur hversu oft polygoninn "snýst" í kringum punktinn
 // ef útkoman er 0, þá liggur punkturinn utan við polygoninn
 // ef útkoman er eitthvað annað en 0, þá liggur punkturinn inni í polygoninum
-function collision_polygon_to_point(vertices, px, py, sensitivity = 0, testInside = false)
+function collision_polygon_to_point(vertices,px,py,sensitivity = 0,testInside = false)
 {
     // breytur til að auka læsileika
     const X = 0;
@@ -2580,7 +2741,8 @@ function collision_polygon_to_point(vertices, px, py, sensitivity = 0, testInsid
             // sækja index á næsta punkti
             next = current + 1;
 
-            // ef við erum komin út fyrir fylkið, þá notum við fyrsta sem endapunkt
+            // ef við erum komin út fyrir fylkið
+            // þá notum við fyrsta sem endapunkt
             if(next == vertices.length)
             {
                 next = 0;
@@ -2634,13 +2796,14 @@ function collision_polygon_to_point(vertices, px, py, sensitivity = 0, testInsid
 // collision_polygon_to_circle()
 // athugar árekstra á milli polygons og hrings
 //
-// vertices -> fylki með X,Y hnitum allra punktanna á polygoninum (ATH: ekki m_points, heldur eftir umbreytingar)
-// cx, cy -> X og Y hnit á miðjupunkti hringsins (pixel position hnit)
+// vertices -> fylki með X,Y hnitum allra punktanna á polygoninum
+//             ATH: ekki m_points, heldur eftir umbreytingar
+// cx, cy -> X og Y hnit á miðjupunkti hringsins (pixel hnit)
 // cr -> radíus hringsins (pixel stærð)
-// testInside -> skal athuga hvort hringurinn í heild sinni sé inni í polygoninum?
+// testInside -> athuga hvort hringurinn í heild sinni sé inni í polygoninum?
 //               (þyngra í vinnslu, default er að sleppa því)
 //
-// TODO - hugsa um hvernig sé best að bæta við sensitivity í parametrana
+// TODO - sensitivity
 function collision_polygon_to_circle(vertices, cx, cy, cr, testInside = false)
 {
     // breytur til að auka læsileika
@@ -2663,10 +2826,12 @@ function collision_polygon_to_circle(vertices, cx, cy, cr, testInside = false)
         let currentVertex = vertices[current];
         let nextVertex = vertices[next];
 
-        // athuga hvort hringurinn snerti línuna sem markast af currentVertex og nextVertex
+        // athuga hvort hringurinn snerti línuna sem
+        // markast af currentVertex og nextVertex
         let collision = collision_line_to_circle(currentVertex[X], currentVertex[Y], nextVertex[X], nextVertex[Y], cx,cy,cr);
 
-        // ef hann gerir það, þá er árekstur og við þurfum ekki að skoða fleiri punkta
+        // ef hann gerir það, þá er árekstur og við
+        // þurfum ekki að skoða fleiri punkta
         if(collision == true)
         {
             return true;
@@ -2692,14 +2857,15 @@ function collision_polygon_to_circle(vertices, cx, cy, cr, testInside = false)
 // collision_polygon_to_rectangle()
 // athugar árekstra á milli polygons og ferhyrnings
 //
-// vertices -> fylki með X,Y hnitum allra punktanna á polygoninum (ATH: ekki m_points, heldur eftir umbreytingar)
-// rx, ry -> X og Y hnit á efra vinstra horni ferhyrningsins (pixel position hnit)
+// vertices -> fylki með X,Y hnitum allra punktanna á polygoninum
+//             ATH: ekki m_points, heldur eftir umbreytingar)
+// rx, ry -> X og Y hnit á efra vinstra horni ferhyrningsins (pixel hnit)
 // rw, rh -> breidd og hæð ferhyrningsins (pixel stærð)
-// testInside -> skal athuga hvort ferhyrningurinn í heild sinni sé inni í polygoninum?
+// testInside -> athuga hvort ferhyrningurinn í heild sinni sé inni í polygoninum?
 //               (þyngra í vinnslu, default er að sleppa því)
 //
 // TODO - hugsa um hvernig sé best að bæta við sensitivity í parametrana
-function collision_polygon_to_rectangle(vertices, rx, ry, rw, rh, testInside = false)
+function collision_polygon_to_rectangle(vertices,rx,ry,rw,rh,testInside = false)
 {
     // breytur til að auka læsileika
     const X = 0;
@@ -2721,7 +2887,8 @@ function collision_polygon_to_rectangle(vertices, rx, ry, rw, rh, testInside = f
         let currentVertex = vertices[current];
         let nextVertex = vertices[next];
 
-        // athuga hvort ferhyrningurinn snerti línuna sem markast af currentVertex og nextVertex
+        // athuga hvort ferhyrningurinn snerti línuna sem
+        // markast af currentVertex og nextVertex
         let collision = collision_line_to_rectangle(currentVertex[X],currentVertex[Y],nextVertex[X],nextVertex[Y],rx,ry,rw,rh);
 
         // ef hann gerir það, þá er árekstur og við þurfum ekki að skoða fleiri punkta
@@ -2750,9 +2917,10 @@ function collision_polygon_to_rectangle(vertices, rx, ry, rw, rh, testInside = f
 // collision_polygon_to_line()
 // athugar árekstra á milli polygons og línu
 //
-// vertices -> fylki með X,Y hnitum allra punktanna á polygoninum (ATH: ekki m_points, heldur eftir umbreytingar)
-// l1x, l1y -> X og Y hnit á upphafspunkti línunnar (pixel position hnit)
-// l2x, l2y -> X og Y hnit á endapunkti línunnar (pixel position hnit)
+// vertices -> fylki með X,Y hnitum allra punktanna á polygoninum
+//             ATH: ekki m_points, heldur eftir umbreytingar
+// l1x, l1y -> X og Y hnit á upphafspunkti línunnar (pixel hnit)
+// l2x, l2y -> X og Y hnit á endapunkti línunnar (pixel hnit)
 //
 // TODO - hugsa um hvernig sé best að bæta við sensitivity í parametrana
 function collision_polygon_to_line(vertices, l1x, l1y, l2x, l2y)
@@ -2779,10 +2947,12 @@ function collision_polygon_to_line(vertices, l1x, l1y, l2x, l2y)
         let l4x = vertices[next][X];
         let l4y = vertices[next][Y];
 
-        // athuga hvort línan sker/snertir línuna sem markast af currentVertex og nextVertex
+        // athuga hvort línan sker/snertir línuna sem
+        // markast af currentVertex og nextVertex
         let collision = collision_line_to_line(l1x,l1y,l2x,l2y,l3x,l3y,l4x,l4y);
 
-        //ef hún gerir það, þá er árekstur og við þurfum ekki að skoða fleiri punkta
+        // ef hún gerir það, þá er árekstur og við
+        // þurfum ekki að skoða fleiri punkta
         if(collision == true)
         {
             return true;
@@ -2795,8 +2965,10 @@ function collision_polygon_to_line(vertices, l1x, l1y, l2x, l2y)
 // collision_polygon_to_polygon()
 // athugar árekstra á milli polygons og polygons
 //
-// vertices1 -> fylki með X,Y hnitum allra punktanna á polygoninum (ATH: ekki m_points, heldur eftir umbreytingar)
-// vertices2 -> fylki með X,Y hnitum allra punktanna á polygoninum (ATH: ekki m_points, heldur eftir umbreytingar)
+// vertices1 -> fylki með X,Y hnitum allra punktanna á polygoninum
+//              ATH: ekki m_points, heldur eftir umbreytingar
+// vertices2 -> fylki með X,Y hnitum allra punktanna á polygoninum
+//              ATH: ekki m_points, heldur eftir umbreytingar
 // testInside -> skal athuga hvort polygon2 í heild sinni sé inni í polygon1?
 //               (þyngra í vinnslu, default er að sleppa því)
 //
@@ -2823,7 +2995,8 @@ function collision_polygon_to_polygon(vertices1, vertices2, testInside = false)
         let currentVertex = vertices1[current];
         let nextVertex = vertices1[next];
 
-        //athuga hvort polygon2 sé með árekstur við línuna sem markast af currentVertex og nextVertex
+        // athuga hvort polygon2 sé með árekstur við línuna
+        // sem markast af currentVertex og nextVertex
         let collision = collision_polygon_to_line(vertices2, currentVertex[X], currentVertex[Y], nextVertex[X], nextVertex[Y]);
 
         //ef svo er, þá er árekstur og við þurfum ekki að skoða fleiri punkta
@@ -2852,22 +3025,24 @@ function collision_polygon_to_polygon(vertices1, vertices2, testInside = false)
 // collision_triangle_to_point()
 // athugar árekstra á milli þríhyrnings og punkts
 //
-// t1x, t1y -> X og Y hnit á fyrsta horninu á þríhyrningnum (pixel position hnit)
-// t2x, t2y -> X og Y hnit á öðrum horninu á þríhyrningnum (pixel position hnit)
-// t3x, t3y -> X og Y hnit á þriðja horninu á þríhyrningnum (pixel position hnit)
-// px, py -> X og Y hnit á punktinum (pixel position hnit)
+// t1x, t1y -> X og Y hnit á fyrsta horninu á þríhyrningnum (pixel hnit)
+// t2x, t2y -> X og Y hnit á öðrum horninu á þríhyrningnum (pixel hnit)
+// t3x, t3y -> X og Y hnit á þriðja horninu á þríhyrningnum (pixel hnit)
+// px, py -> X og Y hnit á punktinum (pixel hnit)
 function collision_triangle_to_point(t1x,t1y,t2x,t2y,t3x,t3y,px,py)
 {
     // notum Heron til að finna flatarmál þríhyrningsins
     let areaT = Math.abs(collision_util_heron(t1x,t1y,t2x,t2y,t3x,t3y));
 
-    // myndum svo 3 nýja þríhyrninga með px,py punktinum og hverri hlið um sig í upprunalega þríhyrningnum
+    // myndum svo 3 nýja þríhyrninga með px,py punktinum og
+    // hverri hlið um sig í upprunalega þríhyrningnum
     // og reiknum flatarmál þeirra með Heron
     let area1 = Math.abs(collision_util_heron(px,py,t1x,t1y,t2x,t2y));
     let area2 = Math.abs(collision_util_heron(px,py,t2x,t2y,t3x,t3y));
     let area3 = Math.abs(collision_util_heron(px,py,t3x,t3y,t1x,t1y));
 
-    // ef samanlagt flatarmál þessara 3 þríhyrninga er það sama og flatarmál upprunalega þríhyrningsins
+    // ef samanlagt flatarmál þessara 3 þríhyrninga er
+    // það sama og flatarmál upprunalega þríhyrningsins
     // þá er árekstur
     if(area1+area2+area3 == areaT)
     {
