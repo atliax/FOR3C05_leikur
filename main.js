@@ -11,6 +11,9 @@
  * 
  * */
 
+// þetta teiknar debug upplýsingar á skjáinn ef þetta er sett sem true
+const DEBUG = false;
+
 /*******************************************************************************
 *                              Upphaf keyrslunnar                              *
 *******************************************************************************/
@@ -365,11 +368,14 @@ function menu_mouse_move(event)
         let targetH = FONT_HEIGHT-GRID;
 
         // debug box
-        //context.save();
-        //context.strokeStyle = COLOR_HIGHLIGHT;
-        //context.rect(targetX,targetY,targetW,targetH);
-        //context.stroke();
-        //context.restore();
+        if(DEBUG)
+        {
+            context.save();
+            context.strokeStyle = COLOR_HIGHLIGHT;
+            context.rect(targetX,targetY,targetW,targetH);
+            context.stroke();
+            context.restore();
+        }
 
         // athuga hvort það sé árekstur á milli músarinnar og kassans
         let hitTarget = collision_point_to_rectangle(mouseX,mouseY,targetX,targetY,targetW,targetH);
@@ -577,7 +583,7 @@ function main_loop()
         }
     }
 
-    //draw_debug_cross();
+    draw_debug_cross();
 }
 
 function enemies_shoot(array)
@@ -764,6 +770,9 @@ function draw_entername_menu()
 // teiknar krossa yfir skjáinn til að aðstoða við staðsetningu á hlutum
 function draw_debug_cross()
 {
+    if(!DEBUG)
+        return;
+
     context.save();
 
     context.translate(0.5,0.5);
@@ -817,6 +826,7 @@ function main_menu_select(option)
             currentMenu = MENU_HIGHSCORES;
             break;
     }
+    mainMenuMouseOver[option] = false;
 }
 
 // highscores_menu_select()
@@ -829,6 +839,7 @@ function highscores_menu_select(option)
     {
         case 0://BACK
             currentMenu = MENU_MAIN;
+            mainMenuMouseOver[option] = false;
             break;
         case 1://RESET SCORES
             highscores.reset();
