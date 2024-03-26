@@ -12,7 +12,7 @@
  * */
 
 // þetta teiknar debug upplýsingar á skjáinn ef þetta er sett sem true
-const DEBUG = false;
+let debugInfo = false;
 
 /*******************************************************************************
 *                              Upphaf keyrslunnar                              *
@@ -368,7 +368,7 @@ function menu_mouse_move(event)
         let targetH = FONT_HEIGHT-GRID;
 
         // debug box
-        if(DEBUG)
+        if(debugInfo)
         {
             context.save();
             context.strokeStyle = COLOR_HIGHLIGHT;
@@ -770,7 +770,7 @@ function draw_entername_menu()
 // teiknar krossa yfir skjáinn til að aðstoða við staðsetningu á hlutum
 function draw_debug_cross()
 {
-    if(!DEBUG)
+    if(!debugInfo)
         return;
 
     context.save();
